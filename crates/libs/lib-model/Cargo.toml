@@ -1,0 +1,12 @@
+[package]
+name = "lib-model"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = { workspace = true }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
+tokio = { workspace = true }
+sled = "0.34.7"
+
+lib-utils = { path = "../lib-utils" }

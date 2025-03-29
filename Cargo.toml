@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "crates/libs/lib-core",
+    "crates/libs/lib-model",
+    "crates/libs/lib-utils",
+
+    "crates/services/invi/src-tauri",
+    "crates/services/invi",
+]
+resolver = "2"
+
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.30", features = ["full"] }
+lib-core = { path = "crates/libs/lib-core" }
+lib-model = { path = "crates/libs/lib-model" }
+lib-utils = { path = "crates/libs/lib-utils" }
