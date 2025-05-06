@@ -5,6 +5,8 @@ mod cache;
 mod error;
 mod store;
 
+
+
 pub use error::{Error, Result};
 pub struct ModelManager {
     db: Db,
@@ -17,5 +19,12 @@ impl ModelManager {
         let cache = cache::get_cache_db(cache_url)?;
 
         Ok(Self { db, cache })
+    }
+
+    pub fn db(&self) -> &Db {
+        &self.db
+    }
+    pub fn cache(&self) -> &CacheDB {
+        &self.cache
     }
 }

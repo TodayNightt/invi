@@ -6,6 +6,7 @@ members = [
 
     "crates/services/invi/src-tauri",
     "crates/services/invi",
+    "crates/libs/lib-schema",
 ]
 resolver = "2"
 
@@ -17,3 +18,9 @@ tokio = { version = "1.30", features = ["full"] }
 lib-core = { path = "crates/libs/lib-core" }
 lib-model = { path = "crates/libs/lib-model" }
 lib-utils = { path = "crates/libs/lib-utils" }
+
+jsonschema = "0.29.1"
+
+
+[workspace.lints.rust]
+unused = { level = "allow", priority = -1 }
