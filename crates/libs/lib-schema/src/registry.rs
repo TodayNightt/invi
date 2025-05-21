@@ -1,45 +1,41 @@
-use jsonschema::Validator;
-use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use crate::{Error, Result, types::JsonSchema};
+use crate::{
+    schema::{self, Schema},
+    validator::Validator,
+    value_store::ValueStore,
+};
 
-pub struct SchemaRegistry {
-    schemas: HashMap<String, JsonSchema>,
+#[derive(Debug, Default)]
+pub struct Registry {
+    schemas: HashMap<String, Arc<Schema>>,
 }
 
-impl SchemaRegistry {
+impl Registry {
     pub fn new() -> Self {
-        Self {
+        Registry {
             schemas: HashMap::new(),
         }
     }
 
-    pub fn register_schema(&mut self, name: &str, value: &Value) -> Result<()> {
-        let validator =
-            Validator::new(value).map_err(|e| Error::FailToCreateValidator(e.into()))?;
-
-        let schema = JsonSchema::new(value.clone(), validator);
-
-        self.schemas.insert(name.to_owned(), schema);
-        Ok(())
+    pub fn register(&mut self, name: &str, schema: Schema) {
+        self.schemas.insert(name.to_string(), Arc::new(schema));
     }
 
-    pub fn get_schema(&self, name: &str) -> Option<&Value> {
-        self.schemas.get(name).map(|schema| schema.schema())
+    pub fn get_schema(&self, name: &str) -> Option<Arc<Schema>> {
+        self.schemas.get(name).cloned()
     }
 
-    pub fn validate(&self, name: &str, data: &Value) -> Result<()> {
-        if let Some(schema) = self.schemas.get(name) {
-            let validator = schema.validator();
-            if !validator.is_valid(data) {
-                let errors = validator.iter_errors(data);
-                Err(Error::ValidateError(errors.map(|e| e.into()).collect()))
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(Error::UnknownType(name.to_string()))
+    pub fn load_from_file(schemas: BulkSchema) -> Self {
+        let mut registry = Self::new();
+        for schema in schemas.schemas {
+            let name = schema.name();
+            registry.register(&name, schema);
         }
+        registry
     }
+}
+
+pub struct BulkSchema {
+    schemas: Vec<Schema>,
 }

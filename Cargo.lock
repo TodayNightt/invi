@@ -2616,7 +2616,6 @@ dependencies = [
 name = "lib-schema"
 version = "0.1.0"
 dependencies = [
- "jsonschema",
  "lib-utils",
  "serde",
  "serde_json",
