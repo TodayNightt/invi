@@ -45,6 +45,7 @@ impl Field {
 /// This is a custom implementation of the 'Value' type apart from the 'serde_json' crate.
 /// As I want to create custom API for this type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum Value {
     String(String),
     // Note : Every measurement will be using millimeters(mm) as the base unit
