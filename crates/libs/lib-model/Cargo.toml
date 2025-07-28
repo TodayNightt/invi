@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-serde_json = { workspace = true }
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+serde = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
-sled = "0.34.7"
 
 lib-utils = { path = "../lib-utils" }
+lib-schema = { path = "../lib-schema" }
