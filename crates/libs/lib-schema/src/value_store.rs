@@ -3,7 +3,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-
+use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
 
 use crate::{Value, schema};
@@ -141,6 +141,12 @@ impl TryFrom<Value> for ValueStore {
             }
             _ => Err(ValueStoreError::NotAnObject),
         }
+    }
+}
+
+impl Display for ValueStore{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&serde_json::to_string(self).map_err(|_| std::fmt::Error)?)
     }
 }
 
