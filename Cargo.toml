@@ -7,6 +7,7 @@ members = [
     "crates/services/invi/src-tauri",
     "crates/services/invi",
     "crates/libs/lib-schema",
+    "crates/libs/lib-sync", "crates/libs/lib-image",
 ]
 resolver = "2"
 
@@ -15,11 +16,12 @@ resolver = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.30", features = ["full"] }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json"] }
 lib-core = { path = "crates/libs/lib-core" }
 lib-model = { path = "crates/libs/lib-model" }
 lib-utils = { path = "crates/libs/lib-utils" }
 
-jsonschema = "0.29.1"
+chrono = "0.4.41"
 
 
 [workspace.lints.rust]
