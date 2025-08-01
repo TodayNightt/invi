@@ -13,18 +13,23 @@ pub use value_store::ValueStore;
 mod error {
     pub type Result<T> = core::result::Result<T, Error>;
 
-    use lib_utils::types::ErrorDescriptor;
-
-    use crate::validator;
+    use crate::{validator, value_store};
 
     #[derive(Debug)]
     pub enum Error {
         ValidationError(validator::ValidatorError),
+        ValueStoreError(value_store::ValueStoreError),
     }
 
     impl From<validator::ValidatorError> for Error {
         fn from(value: validator::ValidatorError) -> Self {
             Error::ValidationError(value)
+        }
+    }
+
+    impl From<value_store::ValueStoreError> for Error {
+        fn from(value: value_store::ValueStoreError) -> Self {
+            Error::ValueStoreError(value)
         }
     }
 
