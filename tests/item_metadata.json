@@ -1,0 +1,8 @@
+{
+	"schema_name": "TestSchema",
+	"object_properties_schemas": {},
+	"values": {
+		"a": "this is a string",
+		"b": 10
+	}
+}
