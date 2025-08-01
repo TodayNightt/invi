@@ -5,17 +5,31 @@ pub enum Error {
     FailToCreatePool(String),
     FailToOpenCache(String),
     ParseError(String),
+    
+    QueryNotFound(u32),
+    QueryError(String),
+    DatabaseError(String),
+
+    RecordUpdateForbidden(String),
+
+    IntegerConversionError(String),
 }
 
 impl From<sqlx::Error> for Error {
     fn from(err: sqlx::Error) -> Self {
-        Self::FailToCreatePool(err.to_string())
+        match err {
+            sqlx::Error::Configuration(err) => Self::FailToCreatePool(err.to_string()),
+            sqlx::Error::Io(err) => Self::FailToCreatePool(err.to_string()),
+            sqlx::Error::Protocol(err) => Self::FailToCreatePool(err.to_string()),
+            sqlx::Error::Database(err) => Self::DatabaseError(err.to_string()),
+            _ => Self::ParseError(err.to_string()),
+        }
     }
 }
 
-impl From<sled::Error> for Error {
-    fn from(err: sled::Error) -> Self {
-        Self::FailToOpenCache(err.to_string())
+impl From<std::num::TryFromIntError> for Error {
+    fn from(err: std::num::TryFromIntError) -> Self {
+        Self::IntegerConversionError(err.to_string())
     }
 }
 
