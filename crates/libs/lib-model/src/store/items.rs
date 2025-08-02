@@ -1,3 +1,4 @@
+use sqlx::encode::IsNull::No;
 use crate::store::items::types::Item;
 use crate::{Error, ModelManager, Result};
 
@@ -46,7 +47,7 @@ impl ItemsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Result<Item> {
+    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
         let db = mm.db();
 
         // Read an item by ID
@@ -54,12 +55,12 @@ impl ItemsBmc {
             .bind(item_id)
             .fetch_one(db)
             .await
-            .map_err(|_| Error::QueryNotFound(item_id))?;
+            .ok()?;
 
-        Ok(result)
+        Some(result)
     }
 
-    pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Result<()> {
+    pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
         let db = mm.db();
 
         let result = sqlx::query("UPDATE items SET name = $1 WHERE id = $2")
@@ -67,18 +68,19 @@ impl ItemsBmc {
             .bind(item_id)
             .execute(db)
             .await
-            .map_err(|_| Error::QueryNotFound(item_id))?
+            .ok()?
             .rows_affected();
 
-        if result.ne(&1) {
-            return Err(Error::QueryNotFound(item_id));
+        if result.lt(&1) {
+            return None;
         }
 
-        Ok(())
+
+        Some(())
     }
 
 
-    pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Result<()> {
+    pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Option<()> {
         let db = mm.db();
 
         let result = sqlx::query("UPDATE items SET item_metadata = $1 WHERE id = $2")
@@ -86,17 +88,17 @@ impl ItemsBmc {
             .bind(item_id)
             .execute(db)
             .await
-            .map_err(|_| Error::QueryNotFound(item_id))?
+            .ok()?
             .rows_affected();
 
-        if result.ne(&1) {
-            return Err(Error::QueryNotFound(item_id));
+        if result.lt(&1) {
+            return None;
         }
 
-        Ok(())
+        Some(())
     }
 
-    pub async fn delete(mm: &ModelManager, item_id: u32) -> Result<u32> {
+    pub async fn delete(mm: &ModelManager, item_id: u32) -> Option<u32> {
         let db = mm.db();
 
         // Delete an item by ID
@@ -104,17 +106,14 @@ impl ItemsBmc {
             .bind(item_id)
             .execute(db)
             .await
-            .map_err(|err| match err {
-                sqlx::error::Error::RowNotFound => Error::QueryNotFound(item_id),
-                _ => err.into(),
-            })?
+            .ok()?
             .rows_affected();
 
-        if rows_affected == 0 {
-            Err(Error::QueryNotFound(item_id))
-        } else {
-            Ok(item_id)
+        if rows_affected.lt(&1){
+           return None
         }
+        
+        Some(item_id)
     }
 }
 
