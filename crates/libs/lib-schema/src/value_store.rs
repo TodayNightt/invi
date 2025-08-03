@@ -1,4 +1,3 @@
-pub(crate) use error::ValueStoreError;
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
@@ -7,6 +6,7 @@ use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
 
 use crate::{Value, schema};
+pub(crate) use error::{Result,ValueStoreError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValueStore {
@@ -82,14 +82,14 @@ impl ValueStore {
         schema_name: Option<String>,
         value: &Value,
         object_properties_schemas: Arc<HashMap<String, String>>,
-    ) -> Result<ValueStore, ValueStoreError> {
+    ) -> Result<ValueStore> {
         let mut vs: ValueStore = ValueStore::from_value_shallow(value)?;
         vs.schema_name = schema_name;
 
         Ok(vs.with_object_properties_schemas(object_properties_schemas))
     }
 
-    pub fn from_value_shallow(value: &Value) -> error::Result<Self> {
+    pub fn from_value_shallow(value: &Value) -> Result<Self> {
         if let Some(map) = value.as_object() {
             let mut value_store = ValueStore::new(None);
 
@@ -104,14 +104,14 @@ impl ValueStore {
 }
 
 impl TryFrom<Value> for ValueStore {
-    type Error = ValueStoreError;
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
+    type Error = crate::Error;
+    fn try_from(value: Value) -> core::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
                 let schema_name = map.get("schema_name").and_then(|v| v.as_str());
 
-                let object_properties_schamas: Option<HashMap<String, String>> = map
-                    .get("object_properties_schamas")
+                let object_properties_schemas: Option<HashMap<String, String>> = map
+                    .get("object_properties_schemas")
                     .and_then(|v| v.as_object())
                     .map(|v| {
                         v.iter()
@@ -120,7 +120,7 @@ impl TryFrom<Value> for ValueStore {
                     });
 
                 let mut value_store = {
-                    if let Some(object_properties_schemas) = object_properties_schamas {
+                    if let Some(object_properties_schemas) = object_properties_schemas {
                         let object_properties_schema = Arc::new(object_properties_schemas);
                         ValueStore::new(schema_name)
                             .with_object_properties_schemas(object_properties_schema)
@@ -130,7 +130,7 @@ impl TryFrom<Value> for ValueStore {
                 };
 
                 let Some(values) = map.get("values").and_then(|v| v.as_object()) else {
-                    return Err(ValueStoreError::CannotConvertFromValue);
+                    return Err(ValueStoreError::CannotConvertFromValue.into());
                 };
 
                 for (key, value) in values {
@@ -139,7 +139,7 @@ impl TryFrom<Value> for ValueStore {
 
                 Ok(value_store)
             }
-            _ => Err(ValueStoreError::NotAnObject),
+            _ => Err(ValueStoreError::NotAnObject.into()),
         }
     }
 }
@@ -151,23 +151,23 @@ impl Display for ValueStore{
 }
 
 impl TryFrom<&Value> for ValueStore {
-    type Error = ValueStoreError;
-    fn try_from(value: &Value) -> Result<Self, Self::Error> {
+    type Error = crate::Error;
+    fn try_from(value: &Value) ->  core::result::Result<Self, Self::Error> {
         value.clone().try_into()
     }
 }
 
 impl TryFrom<serde_json::Value> for ValueStore {
-    type Error = ValueStoreError;
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+    type Error = crate::Error;
+    fn try_from(value: serde_json::Value) -> core::result::Result<Self, Self::Error> {
         let value: Value = value.into();
         value.try_into()
     }
 }
 
 impl TryFrom<&serde_json::Value> for ValueStore {
-    type Error = ValueStoreError;
-    fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
+    type Error = crate::Error;
+    fn try_from(value: &serde_json::Value) -> core::result::Result<Self, Self::Error> {
         value.clone().try_into()
     }
 }
