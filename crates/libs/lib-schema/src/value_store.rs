@@ -161,7 +161,7 @@ impl TryFrom<serde_json::Value> for ValueStore {
     type Error = crate::Error;
     fn try_from(value: serde_json::Value) -> core::result::Result<Self, Self::Error> {
         let value: Value = value.into();
-        value.try_into()
+        Ok(value.try_into()?)
     }
 }
 
