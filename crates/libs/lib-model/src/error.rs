@@ -13,6 +13,8 @@ pub enum Error {
     RecordUpdateForbidden(String),
 
     IntegerConversionError(String),
+
+    LibSchemaError(lib_schema::Error)
 }
 
 impl From<sqlx::Error> for Error {
@@ -24,6 +26,12 @@ impl From<sqlx::Error> for Error {
             sqlx::Error::Database(err) => Self::DatabaseError(err.to_string()),
             _ => Self::ParseError(err.to_string()),
         }
+    }
+}
+
+impl From<lib_schema::Error> for Error {
+    fn from(err: lib_schema::Error) -> Self {
+        Self::LibSchemaError(err)
     }
 }
 
