@@ -39,8 +39,10 @@ pub async fn get_dev_env() -> Result<ModelManager> {
 
     drop(db);
 
+    let image_store_url = env!("LIBMODEL_IMAGE_STORE_URL");
 
-    ModelManager::new(&db_url).await
+
+    ModelManager::new(&db_url,image_store_url).await
 }
 
 async fn pexec(db: &Db, file: &str) -> Result<()> {

@@ -1,6 +1,16 @@
-CREATE TABLE IF NOT EXISTS location
+CREATE TABLE IF NOT EXISTS location_metadata
 (
-    id INTEGER PRIMARY KEY AUTOINCREMENT
+    id       INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
+    name     TEXT                              NOT NULL,
+    metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS location_data
+(
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    location INTEGER REFERENCES location_metadata (id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+    rack     TEXT,
+    bin      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS image
@@ -14,7 +24,7 @@ CREATE TABLE IF NOT EXISTS items
     id            INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE                             NOT NULL,
     name          TEXT                                                                 NOT NULL,
     item_metadata TEXT,
-    location      INTEGER REFERENCES location (id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
+    location      INTEGER REFERENCES location_data (id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
     image         INTEGER REFERENCES image (id) ON UPDATE CASCADE                      NOT NULL
 );
 

@@ -14,7 +14,9 @@ pub enum Error {
 
     IntegerConversionError(String),
 
-    LibSchemaError(lib_schema::Error)
+    LibSchemaError(lib_schema::Error),
+
+    ObjectStoreError(object_store::Error),
 }
 
 impl From<sqlx::Error> for Error {
@@ -26,6 +28,12 @@ impl From<sqlx::Error> for Error {
             sqlx::Error::Database(err) => Self::DatabaseError(err.to_string()),
             _ => Self::ParseError(err.to_string()),
         }
+    }
+}
+
+impl From<object_store::Error> for Error {
+    fn from(err: object_store::Error) -> Self {
+        Self::ObjectStoreError(err)
     }
 }
 
