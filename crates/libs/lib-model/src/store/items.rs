@@ -1,6 +1,6 @@
-use sqlx::encode::IsNull::No;
-use crate::store::items::types::Item;
+use crate::store::items::types::{Item, RawItem};
 use crate::{Error, ModelManager, Result};
+use sqlx::encode::IsNull::No;
 
 pub mod types;
 
@@ -30,34 +30,39 @@ impl ItemsBmc {
         let id: i64 = sqlx::query(
             "INSERT INTO items (name, item_metadata, location, image) VALUES ($1, $2, $3, $4)",
         )
-        .bind(name)
-        .bind(metadata)
-        .bind(location)
-        .bind(image_data)
-        .execute(db)
-        .await
-        .map_err(|err| match err {
-            sqlx::error::Error::RowNotFound => {
-                Error::QueryError(format!("Failed to create item: {}", name))
-            }
-            _ => err.into(),
-        })?
-        .last_insert_rowid();
+            .bind(name)
+            .bind(metadata)
+            .bind(location)
+            .bind(image_data)
+            .execute(db)
+            .await
+            .map_err(|err| match err {
+                sqlx::error::Error::RowNotFound => {
+                    Error::QueryError(format!("Failed to create item: {}", name))
+                }
+                _ => err.into(),
+            })?
+            .last_insert_rowid();
 
         Ok(id.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
+    pub async fn get_raw(mm: &ModelManager, item_id: u32) -> Option<RawItem> {
         let db = mm.db();
 
         // Read an item by ID
-        let result = sqlx::query_as::<_, Item>("SELECT * FROM items WHERE id = $1")
+        sqlx::query_as::<_, RawItem>(
+            "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
             .bind(item_id)
-            .fetch_one(db)
+            .fetch_optional(db)
             .await
-            .ok()?;
+            .ok()?
+    }
 
-        Some(result)
+    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
+        let result = ItemsBmc::get_raw(mm, item_id).await?;
+
+        result.try_into().ok()
     }
 
     pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
@@ -75,10 +80,8 @@ impl ItemsBmc {
             return None;
         }
 
-
         Some(())
     }
-
 
     pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Option<()> {
         let db = mm.db();
@@ -109,10 +112,10 @@ impl ItemsBmc {
             .ok()?
             .rows_affected();
 
-        if rows_affected.lt(&1){
-           return None
+        if rows_affected.lt(&1) {
+            return None;
         }
-        
+
         Some(item_id)
     }
 }
@@ -153,7 +156,7 @@ mod tests {
             .await
             .unwrap();
 
-        let item = ItemsBmc::get(&mm, id).await.unwrap();
+        let item = ItemsBmc::get_raw(&mm, id).await.unwrap();
 
         assert_eq!(item.id(), id);
 
@@ -215,7 +218,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result_item = ItemsBmc::get(&mm, id).await.unwrap();
+        let result_item = ItemsBmc::get_raw(&mm, id).await.unwrap();
 
         let metadata: ValueStore = result_item.metadata().try_into().unwrap();
 
