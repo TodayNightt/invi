@@ -5,8 +5,12 @@ INSERT INTO location_data (id, location, rack, bin)
 VALUES (1, 1, 'Rack 1', 'Bin 1');
 INSERT INTO location_data (id, location) VALUES (2, 2);
 
-INSERT INTO image (id, data)
-VALUES (1, 'dsdsdfdfdhdfjkhdkh');
+INSERT INTO image (id, key)
+VALUES (1, 'abd0031');
+INSERT INTO image (id, key)
+VALUES (2, 'djs0032');
+INSERT INTO image (id, key)
+VALUES (3, 'dss0033');
 
 INSERT INTO items (id, name, item_metadata, location, image)
 VALUES (1, 'Item 1',

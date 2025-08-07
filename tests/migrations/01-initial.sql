@@ -15,17 +15,17 @@ CREATE TABLE IF NOT EXISTS location_data
 
 CREATE TABLE IF NOT EXISTS image
 (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
-    data BLOB                              NOT NULL
+    id  INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,
+    key TEXT                              NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS items
 (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE                             NOT NULL,
-    name          TEXT                                                                 NOT NULL,
+    id            INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE                                  NOT NULL,
+    name          TEXT                                                                      NOT NULL,
     item_metadata TEXT,
     location      INTEGER REFERENCES location_data (id) ON DELETE CASCADE ON UPDATE CASCADE NOT NULL,
-    image         INTEGER REFERENCES image (id) ON UPDATE CASCADE                      NOT NULL
+    image         INTEGER REFERENCES image (id) ON UPDATE CASCADE                           NOT NULL
 );
 
 

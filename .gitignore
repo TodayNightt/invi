@@ -1,1 +1,3 @@
 target/
+tests/**.db
+tests/**.redb

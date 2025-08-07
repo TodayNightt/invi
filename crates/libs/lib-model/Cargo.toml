@@ -6,8 +6,12 @@ edition = "2024"
 [dependencies]
 serde_json = { workspace = true, features = ["raw_value"] }
 serde = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, features = ["chrono"] }
 tokio = { workspace = true }
+chrono = {workspace = true}
 
 lib-utils = { path = "../lib-utils" }
 lib-schema = { path = "../lib-schema" }
+
+[dev-dependencies]
+serial_test = {workspace = true}

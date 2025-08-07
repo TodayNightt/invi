@@ -20,10 +20,10 @@ sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json"] }
 lib-core = { path = "crates/libs/lib-core" }
 lib-model = { path = "crates/libs/lib-model" }
 lib-utils = { path = "crates/libs/lib-utils" }
-object_store = "0.12.3"
 chrono = "0.4.41"
 redb = "2.6.2"
 
+serial_test = "3.2.0"
 
 [workspace.lints.rust]
 unused = { level = "allow", priority = -1 }
