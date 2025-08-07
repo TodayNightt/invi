@@ -1,6 +1,6 @@
-use sqlx::encode::IsNull::No;
 use crate::store::items::types::{Item, RawItem};
 use crate::{Error, ModelManager, Result};
+use sqlx::encode::IsNull::No;
 
 pub mod types;
 
@@ -47,24 +47,22 @@ impl ItemsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get_raw(mm : &ModelManager, item_id : u32) ->  Option<RawItem> {
+    pub async fn get_raw(mm: &ModelManager, item_id: u32) -> Option<RawItem> {
         let db = mm.db();
 
         // Read an item by ID
-        let result = sqlx::query_as::<_, RawItem>(
+        sqlx::query_as::<_, RawItem>(
             "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
             .bind(item_id)
-            .fetch_one(db)
+            .fetch_optional(db)
             .await
-            .ok()?;
-
-        Some(result)
+            .ok()?
     }
 
     pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
         let result = ItemsBmc::get_raw(mm, item_id).await?;
 
-        Some(result.try_into().ok()?)
+        result.try_into().ok()
     }
 
     pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
@@ -82,10 +80,8 @@ impl ItemsBmc {
             return None;
         }
 
-
         Some(())
     }
-
 
     pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Option<()> {
         let db = mm.db();
@@ -116,10 +112,10 @@ impl ItemsBmc {
             .ok()?
             .rows_affected();
 
-        if rows_affected.lt(&1){
-           return None
+        if rows_affected.lt(&1) {
+            return None;
         }
-        
+
         Some(item_id)
     }
 }

@@ -8,6 +8,7 @@ pub struct RawItem {
     name: String,
     #[sqlx(rename = "item_metadata")]
     metadata: Json<SerdeValue>,
+    #[sqlx(rename = "key")]
     image: String,
     location: u32,
 }

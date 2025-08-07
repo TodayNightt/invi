@@ -7,7 +7,7 @@ members = [
     "crates/services/invi/src-tauri",
     "crates/services/invi",
     "crates/libs/lib-schema",
-    "crates/libs/lib-sync", "crates/libs/lib-image",
+    "crates/libs/lib-sync", "crates/libs/lib-image", "crates/libs/lib-export",
 ]
 resolver = "2"
 
@@ -20,8 +20,9 @@ sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json"] }
 lib-core = { path = "crates/libs/lib-core" }
 lib-model = { path = "crates/libs/lib-model" }
 lib-utils = { path = "crates/libs/lib-utils" }
-
+object_store = "0.12.3"
 chrono = "0.4.41"
+redb = "2.6.2"
 
 
 [workspace.lints.rust]

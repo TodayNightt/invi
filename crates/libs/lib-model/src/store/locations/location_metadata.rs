@@ -186,6 +186,8 @@ mod tests {
         assert_ne!(result.id(), 1);
         assert_eq!(result.name(), "Hall Uno");
 
+        drop(mm);
+
         let mm = get_dev_env().await.unwrap();
 
         let id = LocationMetadataBmc::create(&mm, "Container Uno", &metadata.to_string())
