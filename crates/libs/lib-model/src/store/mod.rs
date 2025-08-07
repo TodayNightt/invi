@@ -1,7 +1,9 @@
 mod exec;
-mod items;
-mod locations;
-mod records;
+
+pub(crate) mod items;
+pub(crate) mod locations;
+pub(crate) mod records;
+pub(crate) mod image;
 
 use sqlx::{Pool, Sqlite, sqlite::SqlitePoolOptions};
 

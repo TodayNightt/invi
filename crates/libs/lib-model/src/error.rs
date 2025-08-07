@@ -10,6 +10,8 @@ pub enum Error {
     QueryError(String),
     DatabaseError(String),
 
+    ImageNotFound(String),
+
     RecordUpdateForbidden(String),
 
     IntegerConversionError(String),
