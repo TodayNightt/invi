@@ -1,6 +1,6 @@
-use crate::store::items::types::{Item, RawItem};
-use crate::{Error, ModelManager, Result};
 use sqlx::encode::IsNull::No;
+use crate::store::items::types::Item;
+use crate::{Error, ModelManager, Result};
 
 pub mod types;
 
@@ -47,22 +47,17 @@ impl ItemsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get_raw(mm: &ModelManager, item_id: u32) -> Option<RawItem> {
+    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
         let db = mm.db();
 
         // Read an item by ID
-        sqlx::query_as::<_, RawItem>(
-            "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
+        let result = sqlx::query_as::<_, Item>("SELECT * FROM items WHERE id = $1")
             .bind(item_id)
-            .fetch_optional(db)
+            .fetch_one(db)
             .await
-            .ok()?
-    }
+            .ok()?;
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
-        let result = ItemsBmc::get_raw(mm, item_id).await?;
-
-        result.try_into().ok()
+        Some(result)
     }
 
     pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
@@ -80,8 +75,10 @@ impl ItemsBmc {
             return None;
         }
 
+
         Some(())
     }
+
 
     pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Option<()> {
         let db = mm.db();
@@ -112,10 +109,10 @@ impl ItemsBmc {
             .ok()?
             .rows_affected();
 
-        if rows_affected.lt(&1) {
-            return None;
+        if rows_affected.lt(&1){
+           return None
         }
-
+        
         Some(item_id)
     }
 }
@@ -156,7 +153,7 @@ mod tests {
             .await
             .unwrap();
 
-        let item = ItemsBmc::get_raw(&mm, id).await.unwrap();
+        let item = ItemsBmc::get(&mm, id).await.unwrap();
 
         assert_eq!(item.id(), id);
 
@@ -218,7 +215,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result_item = ItemsBmc::get_raw(&mm, id).await.unwrap();
+        let result_item = ItemsBmc::get(&mm, id).await.unwrap();
 
         let metadata: ValueStore = result_item.metadata().try_into().unwrap();
 
