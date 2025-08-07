@@ -1,5 +1,5 @@
 use sqlx::encode::IsNull::No;
-use crate::store::items::types::Item;
+use crate::store::items::types::{Item, RawItem};
 use crate::{Error, ModelManager, Result};
 
 pub mod types;
@@ -47,17 +47,24 @@ impl ItemsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
+    pub async fn get_raw(mm : &ModelManager, item_id : u32) ->  Option<RawItem> {
         let db = mm.db();
 
         // Read an item by ID
-        let result = sqlx::query_as::<_, Item>("SELECT * FROM items WHERE id = $1")
+        let result = sqlx::query_as::<_, RawItem>(
+            "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
             .bind(item_id)
             .fetch_one(db)
             .await
             .ok()?;
 
         Some(result)
+    }
+
+    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
+        let result = ItemsBmc::get_raw(mm, item_id).await?;
+
+        Some(result.try_into().ok()?)
     }
 
     pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
@@ -153,7 +160,7 @@ mod tests {
             .await
             .unwrap();
 
-        let item = ItemsBmc::get(&mm, id).await.unwrap();
+        let item = ItemsBmc::get_raw(&mm, id).await.unwrap();
 
         assert_eq!(item.id(), id);
 
@@ -215,7 +222,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result_item = ItemsBmc::get(&mm, id).await.unwrap();
+        let result_item = ItemsBmc::get_raw(&mm, id).await.unwrap();
 
         let metadata: ValueStore = result_item.metadata().try_into().unwrap();
 
