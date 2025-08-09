@@ -1,8 +1,6 @@
-use crate::ModelManager;
 use crate::store::locations::types::{Location, LocationMetadata, RawLocationMetadata};
-use crate::{Error, Result};
-use sqlx::raw_sql;
-use std::any::Any;
+use crate::ModelManager;
+use crate::Result;
 
 pub mod types;
 
@@ -42,16 +40,16 @@ impl LocationsBmc {
     pub async fn get_location_metadata_for_id(
         mm: &ModelManager,
         id: u32,
-    ) -> Result<LocationMetadata> {
+    ) -> Option<LocationMetadata> {
         let db = mm.db();
 
         let result =
             sqlx::query_as::<_,RawLocationMetadata>("SELECT * FROM location_metadata WHERE id = (SELECT location FROM location_data WHERE id = $1)")
                 .bind(id)
                 .fetch_one(db)
-                .await?;
+                .await.ok()?;
 
-        result.try_into()
+        Some(result.into())
     }
 
     pub async fn get(mm: &ModelManager, id: u32) -> Option<Location> {

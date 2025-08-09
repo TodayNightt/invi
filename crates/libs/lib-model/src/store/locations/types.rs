@@ -1,16 +1,16 @@
+use crate::Error;
+use lib_schema::ValueStore;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as SerdeValue;
 use sqlx::FromRow;
 use sqlx::types::Json;
-use lib_schema::ValueStore;
-use crate::Error;
 
-#[derive(Debug,FromRow,Serialize,Deserialize,Clone)]
-pub struct Location{
-    id : u32,
-    location : String,
-    rack : Option<String>,
-    bin : Option<String>,
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct Location {
+    id: u32,
+    location: String,
+    rack: Option<String>,
+    bin: Option<String>,
 }
 
 impl Location {
@@ -32,39 +32,40 @@ impl Location {
 }
 
 // Location Metadata
-#[derive(Debug,FromRow,Serialize,Deserialize,Clone)]
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct RawLocationMetadata {
     id: u32,
     name: String,
-    metadata: Option<Json<SerdeValue>>,
+    metadata: Option<Json<ValueStore>>,
 }
 
-impl TryFrom<RawLocationMetadata> for LocationMetadata {
-    type Error = Error;
-
-    fn try_from(raw: RawLocationMetadata) -> Result<Self, Self::Error> {
-        let metadata = match raw.metadata {
-            Some(m) => Some(m.0.try_into()?),
-            None => None,
-        };
-        Ok(LocationMetadata{
-            id : raw.id,
-            name : raw.name,
+impl From<RawLocationMetadata> for LocationMetadata {
+    fn from(raw: RawLocationMetadata) -> Self {
+        let metadata = raw.metadata.map(|m| m.0);
+        LocationMetadata {
+            id: raw.id,
+            name: raw.name,
             metadata,
-        })
         }
+    }
 }
 
 pub struct LocationMetadata {
-    id : u32,
-    name : String,
-    metadata : Option<ValueStore>
+    id: u32,
+    name: String,
+    metadata: Option<ValueStore>,
 }
 
 impl LocationMetadata {
-    pub fn id(&self) -> u32 { self.id }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
 
-    pub fn name(&self) -> &str { &self.name }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 
-    pub fn metadata(&self) -> &Option<ValueStore> { &self.metadata }
+    pub fn metadata(&self) -> &Option<ValueStore> {
+        &self.metadata
+    }
 }

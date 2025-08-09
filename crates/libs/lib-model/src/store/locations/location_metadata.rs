@@ -26,7 +26,7 @@ impl LocationMetadataBmc {
         Ok(result.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, id: u32) -> Result<LocationMetadata> {
+    pub async fn get(mm: &ModelManager, id: u32) -> Option<LocationMetadata> {
         let db = mm.db();
 
         let result = sqlx::query_as::<_, RawLocationMetadata>(
@@ -34,9 +34,9 @@ impl LocationMetadataBmc {
         )
         .bind(id)
         .fetch_one(db)
-        .await?;
+        .await.ok()?;
 
-        result.try_into()
+        Some(result.into())
     }
 
     pub async fn get_all(mm: &ModelManager) -> Result<Vec<LocationMetadata>> {
@@ -46,7 +46,7 @@ impl LocationMetadataBmc {
             .fetch_all(db)
             .await?;
 
-        result.into_iter().map(|r| r.try_into()).collect()
+        Ok(result.into_iter().map(|r| r.into()).collect())
     }
 
     pub async fn update_name(mm: &ModelManager, id: u32, name: &str) -> Result<()> {
