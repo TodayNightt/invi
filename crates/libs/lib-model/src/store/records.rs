@@ -1,5 +1,5 @@
+use crate::store::records::types::{ItemRecord, ItemRecords};
 use crate::ModelManager;
-use crate::store::records::types::{RawRecord, Record, Records};
 use crate::{Error, Result};
 
 pub(crate) mod types;
@@ -50,32 +50,30 @@ impl RecordsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, record_id: u32) -> Result<Record> {
+    pub async fn get(mm: &ModelManager, record_id: u32) -> Result<ItemRecord> {
         // Implementation for retrieving records by item_id
         let db = mm.db();
 
-        let record = sqlx::query_as::<_, RawRecord>(
+        let record = sqlx::query_as::<_, ItemRecord>(
             "SELECT id, date, transaction_type, quantity, correction FROM records WHERE id = $1",
         )
         .bind(record_id)
         .fetch_one(db)
         .await?;
 
-        Ok(record.into())
+        Ok(record)
     }
 
-    pub async fn get_all(mm: &ModelManager, item_id: u32) -> Result<Records> {
+    pub async fn get_all_for_item(mm: &ModelManager, item_id: u32) -> Result<ItemRecords> {
         let db = mm.db();
 
-        let records = sqlx::query_as::<_, RawRecord>
+        let records = sqlx::query_as::<_, ItemRecord>
             ("SELECT id, date, transaction_type, quantity, correction FROM records WHERE item_id = $1 ORDER BY date DESC")
             .bind(item_id)
             .fetch_all(db)
             .await?;
 
-        let records: Vec<Record> = records.into_iter().map(|rec| rec.into()).collect();
-
-        Ok(Records::new(item_id, records))
+        Ok(ItemRecords::new(item_id, records))
     }
 
     pub async fn get_in_timeframe(
@@ -83,10 +81,10 @@ impl RecordsBmc {
         item_id: u32,
         start: i64,
         end: i64,
-    ) -> Result<Records> {
+    ) -> Result<ItemRecords> {
         let db = mm.db();
 
-        let records = sqlx::query_as::<_, RawRecord>(
+        let records = sqlx::query_as::<_, ItemRecord>(
             "SELECT id, date, transaction_type, quantity, correction FROM records WHERE item_id = $1 AND date BETWEEN $2 AND $3 ORDER BY date DESC",
         ).bind(item_id)
             .bind(start)
@@ -94,9 +92,9 @@ impl RecordsBmc {
             .fetch_all(db)
             .await?;
 
-        let records: Vec<Record> = records.into_iter().map(|rec| rec.into()).collect();
+        let records: Vec<ItemRecord> = records.into_iter().map(|rec| rec.into()).collect();
 
-        Ok(Records::new(item_id, records))
+        Ok(ItemRecords::new(item_id, records))
     }
 
     pub async fn get_last_total(mm: &ModelManager, item_id: u32) -> Result<u32> {
@@ -112,18 +110,18 @@ impl RecordsBmc {
         Ok(result.map(|r| r.0).unwrap_or(0))
     }
 
-    pub async fn get_last(mm: &ModelManager, item_id: u32) -> Result<Option<Record>> {
+    pub async fn get_last(mm: &ModelManager, item_id: u32) -> Result<Option<ItemRecord>> {
         // Implementation for retrieving the last record
         let db = mm.db();
 
-        let result = sqlx::query_as::<_, RawRecord>(
+        let result = sqlx::query_as::<_, ItemRecord>(
             "SELECT id, date, transaction_type, quantity, total, correction  FROM records WHERE item_id = $1 ORDER BY date DESC LIMIT 1",
         )
             .bind(item_id)
             .fetch_optional(db)
             .await?;
 
-        Ok(result.map(|r| r.into()))
+        Ok(result)
     }
 
     pub async fn update(mm : &ModelManager, item_id : u32, record_id : u32,quantity : u32)-> Result<()> {
@@ -178,8 +176,6 @@ impl RecordsBmc {
             })?;
 
         Ok(())
-
-
     }
 
     pub async fn delete(mm: &ModelManager, record_id: u32, item_id: u32) -> Result<()> {
@@ -240,11 +236,11 @@ fn do_arithmetic(transaction_type: bool, last_total: u32, quantity: u32) -> u32 
 mod tests {
     use crate::_dev_utils::get_dev_env;
     use crate::store::records::RecordsBmc;
+    use crate::Error;
+    use chrono::{TimeZone, Utc};
     use serial_test::serial;
     use std::time::Duration;
-    use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
     use tokio::time::sleep;
-    use crate::Error;
 
     #[tokio::test]
     #[serial]
@@ -296,12 +292,12 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn test_get_all(){
+    async fn test_get_all_for_item(){
         let mm = get_dev_env().await.unwrap();
 
         let item_id = 2;
 
-        let records = RecordsBmc::get_all(&mm, item_id).await.unwrap();
+        let records = RecordsBmc::get_all_for_item(&mm, item_id).await.unwrap();
 
         assert_eq!(records.item_id(), item_id);
         assert_eq!(records.records().len(),9);
