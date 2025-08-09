@@ -1,6 +1,5 @@
-use crate::store::items::types::{Item, RawItem};
+use crate::store::items::types::{Item, Items};
 use crate::{Error, ModelManager, Result};
-use sqlx::encode::IsNull::No;
 
 pub mod types;
 
@@ -21,7 +20,7 @@ impl ItemsBmc {
         mm: &ModelManager,
         name: &str,
         metadata: &str,
-        image_data: i32,
+        image_data: u32,
         location: u32,
     ) -> Result<u32> {
         // Create an item
@@ -47,22 +46,24 @@ impl ItemsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get_raw(mm: &ModelManager, item_id: u32) -> Option<RawItem> {
+    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
         let db = mm.db();
 
         // Read an item by ID
-        sqlx::query_as::<_, RawItem>(
+        sqlx::query_as::<_, Item>(
             "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
             .bind(item_id)
             .fetch_optional(db)
             .await
             .ok()?
     }
+    
+    pub async fn get_all(mm: &ModelManager) -> Result<Items> {
+        let db = mm.db();
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
-        let result = ItemsBmc::get_raw(mm, item_id).await?;
+        let result = sqlx::query_as::<_, Item>("SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id").fetch_all(db).await?;
 
-        result.try_into().ok()
+        Ok(result)
     }
 
     pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
@@ -156,13 +157,13 @@ mod tests {
             .await
             .unwrap();
 
-        let item = ItemsBmc::get_raw(&mm, id).await.unwrap();
+        let item = ItemsBmc::get(&mm, id).await.unwrap();
 
         assert_eq!(item.id(), id);
 
         assert_eq!(item.name(), "TestItem2");
 
-        let metadata: ValueStore = item.metadata().try_into().unwrap();
+        let metadata = item.metadata();
 
         let metadata = metadata.get("test_key").unwrap();
 
@@ -218,9 +219,9 @@ mod tests {
             .await
             .unwrap();
 
-        let result_item = ItemsBmc::get_raw(&mm, id).await.unwrap();
+        let result_item = ItemsBmc::get(&mm, id).await.unwrap();
 
-        let metadata: ValueStore = result_item.metadata().try_into().unwrap();
+        let metadata = result_item.metadata();
 
         let metadata_value = metadata.get("a").unwrap();
 
