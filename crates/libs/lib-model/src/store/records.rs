@@ -1,17 +1,19 @@
-use crate::store::records::types::{ItemRecord, ItemRecords};
+use crate::store::records::types::{ItemRecord, ItemRecords, Record, Records, TransactionType};
 use crate::ModelManager;
 use crate::{Error, Result};
+use chrono::Utc;
 
 pub(crate) mod types;
 
 //```sql
 // CREATE TABLE records (
-// id               INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-// item_id          INTEGER REFERENCES items (id) ON UPDATE CASCADE,
-// date             INTEGER NOT NULL UNIQUE,
-// transaction_type INTEGER NOT NULL CHECK (transaction_type IN (0, 1) ),
-// quantity         INTEGER NOT NULL,
-// total            INTEGER NOT NULL
+// id                 INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
+// item_id            INTEGER REFERENCES items (id) ON UPDATE CASCADE,
+// date               INTEGER NOT NULL UNIQUE,
+// transaction_type   INTEGER NOT NULL CHECK (transaction_type IN (0, 1) ),
+// quantity           INTEGER NOT NULL,
+// total              INTEGER NOT NULL,
+// adjustment_remarks INTEGER
 // );
 //```
 pub(crate) struct RecordsBmc;
@@ -21,23 +23,31 @@ impl RecordsBmc {
         mm: &ModelManager,
         item_id: u32,
         date_create: i64,
-        transaction_type: bool,
+        transaction_type: TransactionType,
         quantity: u32,
-        correction: bool,
+        adjustment_remarks: Option<u32>,
     ) -> Result<u32> {
         let db = mm.db();
         // Calculate the total based on the previous record
         let last_total = Self::get_last_total(mm, item_id).await?;
 
-        let total = do_arithmetic(transaction_type, last_total, quantity);
+        let total = transaction_type.do_arithmetic(last_total, quantity);
+
+        if transaction_type.is_adjustment() && adjustment_remarks.is_none() {
+            return Err(Error::RecordCreationForbidden(
+                "Adjustment remarks needs to be fill for adjustment record".to_string(),
+            ));
+        }
         // Implementation for creating a record
-        let id = sqlx::query("INSERT into records (item_id, date, transaction_type, quantity, total, correction) VALUES ($1, $2, $3, $4, $5, $6)")
+        let id = sqlx::query(
+            "INSERT into records (item_id, date, transaction_type, quantity, total, adjustment_remarks) VALUES ($1, $2, $3, $4, $5, $6)",
+        )
             .bind(item_id)
             .bind(date_create)
-            .bind(transaction_type)
+            .bind(transaction_type as u8)
             .bind(quantity)
             .bind(total)
-            .bind(correction)
+            .bind(adjustment_remarks)
             .execute(db)
             .await
             .map_err(|err| match err {
@@ -50,12 +60,36 @@ impl RecordsBmc {
         Ok(id.try_into()?)
     }
 
-    pub async fn get(mm: &ModelManager, record_id: u32) -> Result<ItemRecord> {
+    pub async fn get_all(mm: ModelManager) -> Result<Records> {
+        let db = mm.db();
+
+        let records = sqlx::query_as::<_,Record>("SELECT id, item_id, date, transaction_type, quantity, total, adjustment_remarks FROM records")
+            .fetch_all(db)
+            .await?;
+
+        Ok(records.into())
+    }
+
+    pub async fn get_in_timeframe(mm: ModelManager, start: i64, end: i64) -> Result<Records> {
+        let db = mm.db();
+
+        let records = sqlx::query_as::<_, Record>(
+            "SELECT * FROM records WHERE date BETWEEN $1 AND $2 ORDER BY date DESC",
+        )
+        .bind(start)
+        .bind(end)
+        .fetch_all(db)
+        .await?;
+
+        Ok(records.into())
+    }
+
+    pub async fn get(mm: &ModelManager, record_id: u32) -> Result<Record> {
         // Implementation for retrieving records by item_id
         let db = mm.db();
 
-        let record = sqlx::query_as::<_, ItemRecord>(
-            "SELECT id, date, transaction_type, quantity, correction FROM records WHERE id = $1",
+        let record = sqlx::query_as::<_, Record>(
+            "SELECT id,item_id, date, transaction_type, quantity, total, adjustment_remarks FROM records WHERE id = $1",
         )
         .bind(record_id)
         .fetch_one(db)
@@ -67,8 +101,8 @@ impl RecordsBmc {
     pub async fn get_all_for_item(mm: &ModelManager, item_id: u32) -> Result<ItemRecords> {
         let db = mm.db();
 
-        let records = sqlx::query_as::<_, ItemRecord>
-            ("SELECT id, date, transaction_type, quantity, correction FROM records WHERE item_id = $1 ORDER BY date DESC")
+        let records = sqlx::query_as::<_,ItemRecord>
+            ("SELECT id, date, transaction_type, quantity, adjustment_remarks FROM records WHERE item_id = $1 ORDER BY date DESC")
             .bind(item_id)
             .fetch_all(db)
             .await?;
@@ -76,7 +110,7 @@ impl RecordsBmc {
         Ok(ItemRecords::new(item_id, records))
     }
 
-    pub async fn get_in_timeframe(
+    pub async fn get_in_timeframe_for_item(
         mm: &ModelManager,
         item_id: u32,
         start: i64,
@@ -85,14 +119,12 @@ impl RecordsBmc {
         let db = mm.db();
 
         let records = sqlx::query_as::<_, ItemRecord>(
-            "SELECT id, date, transaction_type, quantity, correction FROM records WHERE item_id = $1 AND date BETWEEN $2 AND $3 ORDER BY date DESC",
+            "SELECT id, date, transaction_type, quantity, adjustment_remarks FROM records WHERE item_id = $1 AND date BETWEEN $2 AND $3 ORDER BY date DESC",
         ).bind(item_id)
             .bind(start)
             .bind(end)
             .fetch_all(db)
             .await?;
-
-        let records: Vec<ItemRecord> = records.into_iter().map(|rec| rec.into()).collect();
 
         Ok(ItemRecords::new(item_id, records))
     }
@@ -101,7 +133,7 @@ impl RecordsBmc {
         let db = mm.db();
 
         let result = sqlx::query_as::<_, (u32,)>(
-            "SELECT total FROM records WHERE item_id = $1 ORDER BY date DESC LIMIT 1",
+            "SELECT total FROM records WHERE item_id = $1 ORDER BY date DESC, id DESC LIMIT 1",
         )
         .bind(item_id)
         .fetch_optional(db)
@@ -110,133 +142,94 @@ impl RecordsBmc {
         Ok(result.map(|r| r.0).unwrap_or(0))
     }
 
-    pub async fn get_last(mm: &ModelManager, item_id: u32) -> Result<Option<ItemRecord>> {
+    pub async fn get_last(mm: &ModelManager, item_id: u32) -> Option<ItemRecord> {
         // Implementation for retrieving the last record
         let db = mm.db();
 
-        let result = sqlx::query_as::<_, ItemRecord>(
-            "SELECT id, date, transaction_type, quantity, total, correction  FROM records WHERE item_id = $1 ORDER BY date DESC LIMIT 1",
+        sqlx::query_as::<_, ItemRecord>(
+            "SELECT id, date, transaction_type, quantity, total, adjustment_remarks  FROM records WHERE item_id = $1 ORDER BY date DESC, id DESC LIMIT 1",
         )
             .bind(item_id)
             .fetch_optional(db)
-            .await?;
-
-        Ok(result)
+            .await.ok()?
     }
 
-    pub async fn update(mm : &ModelManager, item_id : u32, record_id : u32,quantity : u32)-> Result<()> {
-        let db = mm.db();
+    pub async fn update(
+        mm: &ModelManager,
+        item_id: u32,
+        record_id: u32,
+        quantity: u32,
+    ) -> Result<()> {
         // Implementation for updating a record
-        // check if the record to edit is the last one
-        // we only allow to edit the last record as it will affect the total if not
-        let last_record = Self::get_last(mm, item_id).await?;
+        // It will create a new record and mark the transaction
+        // type to be `Adjustment`
+        // get the corresponding record first
+        let current_record = RecordsBmc::get(mm, record_id).await?;
 
-        let Some(last_record) = last_record else {
-            // FIX : More appropriate error
+        if current_record.item_id() != item_id {
             return Err(Error::RecordUpdateForbidden(format!(
-                "Record data not existent for item_id {}",
-                item_id
-            )));
-        };
-
-        // Check if the record_id matches the last record
-        if !last_record.id().eq(&record_id) {
-            return Err(Error::RecordUpdateForbidden(format!(
-                "Record with id {} is not the last record for item_id {}",
-                record_id, item_id
+                "Item ID ({item_id}) does not match record id ({record_id})",
             )));
         }
 
-        let last_total = Self::get_last_total(mm, item_id).await?;
+        // eval that the transaction type need to be IN or OUT
+        let eval_tt = current_record
+            .transaction_type()
+            .eval_adjustment(current_record.quantity(), quantity);
 
-        // Get the second last record total
-        let previous_total = do_arithmetic(
-            last_record.transaction_type().opposite().into(),
-            last_total,
-            last_record.quantity(),
-        );
+        let Some(tt_new) = eval_tt else {
+            return Err(Error::RecordUpdateForbidden(
+                "The quantity is the same".to_string(),
+            ));
+        };
 
-        let new_total = do_arithmetic(
-            last_record.transaction_type().into(),
-            previous_total,
-            quantity,
-        );
-
-        sqlx::query("UPDATE records SET quantity = $1, total = $2 WHERE id = $3")
-            .bind(quantity)
-            .bind(new_total)
-            .bind(record_id)
-            .execute(db)
-            .await
-            .map_err(|err| match err {
-                sqlx::error::Error::RowNotFound => {
-                    Error::QueryError(format!("Failed to update record with id: {}", record_id))
-                }
-                _ => err.into(),
-            })?;
+        // Get the quantity for adjustment to tally out the difference
+        let quantity_new = (current_record.quantity() as i32 - quantity as i32).unsigned_abs();
+        let date = Utc::now().timestamp();
+        let _new_record_id = RecordsBmc::create(
+            mm,
+            current_record.item_id(),
+            date,
+            tt_new,
+            quantity_new,
+            Some(record_id),
+        )
+        .await?;
 
         Ok(())
     }
 
     pub async fn delete(mm: &ModelManager, record_id: u32, item_id: u32) -> Result<()> {
-        let db = mm.db();
-        // Check whether the record is the last one
-        let last_record = Self::get_last(mm, item_id).await?;
-
-        let Some(last_record) = last_record else {
-            // FIX : More appropriate error
-            return Err(Error::QueryError(format!(
-                "Record with id {} not found",
-                record_id
+        // Add an adjustment record to cancel out the transaction
+        let current_record = RecordsBmc::get(mm, record_id).await?;
+        if current_record.item_id() != item_id {
+            return Err(Error::RecordUpdateForbidden(format!(
+                "Item ID does not match record ID {}",
+                item_id
             )));
-        };
-
-        // If the record is the last one, we can delete it
-        if last_record.id().eq(&record_id) {
-            sqlx::query("DELETE FROM records WHERE id = $1")
-                .bind(record_id)
-                .execute(db)
-                .await
-                .map_err(|err| match err {
-                    sqlx::error::Error::RowNotFound => {
-                        Error::QueryError(format!("Failed to delete record with id: {}", record_id))
-                    }
-                    _ => err.into(),
-                })?;
-        // else, we need to create a new record with the correction flag on, to correct the total
-        } else {
-            // Get the target record, if it is not the last one
-            let target_record = Self::get(mm, record_id).await?;
-
-            // Create a new correction record
-            let time = chrono::Utc::now().timestamp();
-            let transaction_type = target_record.transaction_type().opposite().into();
-            let _ = RecordsBmc::create(
-                mm,
-                item_id,
-                time,
-                transaction_type,
-                target_record.quantity(),
-                true,
-            )
-            .await?;
         }
-        Ok(())
-    }
-}
 
-fn do_arithmetic(transaction_type: bool, last_total: u32, quantity: u32) -> u32 {
-    match transaction_type {
-        false => last_total + quantity,
-        true => last_total - quantity,
+        let opposite_tt = current_record.transaction_type().opposite();
+
+        let date = Utc::now().timestamp();
+        let _new_record = RecordsBmc::create(
+            mm,
+            item_id,
+            date,
+            opposite_tt,
+            current_record.quantity(),
+            Some(record_id),
+        )
+        .await?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::_dev_utils::get_dev_env;
+    use crate::store::records::types::TransactionType;
     use crate::store::records::RecordsBmc;
-    use crate::Error;
     use chrono::{TimeZone, Utc};
     use serial_test::serial;
     use std::time::Duration;
@@ -263,22 +256,23 @@ mod tests {
         let mm = get_dev_env().await.unwrap();
 
         // Test for getting the last record
-        let last_record = RecordsBmc::get_last(&mm, 1).await.unwrap();
+        let last_record = RecordsBmc::get_last(&mm, 1).await;
 
         assert!(last_record.is_some());
-        assert_eq!(last_record.unwrap().id(), 4);
-        assert_eq!(last_record.unwrap().date().timestamp(), 1685577600);
-        assert_eq!(last_record.unwrap().quantity(), 10);
-        assert!(!last_record.unwrap().correction());
+        let last_record = last_record.unwrap();
+        assert_eq!(last_record.id(), 4);
+        assert_eq!(last_record.date().timestamp(), 1685577600);
+        assert_eq!(last_record.quantity(), 10);
+        assert!(last_record.adjustment_remarks().is_none());
 
         // Test for getting the last record with no records
-        let last_record = RecordsBmc::get_last(&mm, 9999).await.unwrap();
+        let last_record = RecordsBmc::get_last(&mm, 9999).await;
         assert!(last_record.is_none());
     }
 
     #[tokio::test]
     #[serial]
-    async fn test_get(){
+    async fn test_get() {
         let mm = get_dev_env().await.unwrap();
 
         let record_id = 2;
@@ -292,7 +286,7 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn test_get_all_for_item(){
+    async fn test_get_all_for_item() {
         let mm = get_dev_env().await.unwrap();
 
         let item_id = 2;
@@ -300,7 +294,7 @@ mod tests {
         let records = RecordsBmc::get_all_for_item(&mm, item_id).await.unwrap();
 
         assert_eq!(records.item_id(), item_id);
-        assert_eq!(records.records().len(),9);
+        assert_eq!(records.records().len(), 9);
     }
 
     #[tokio::test]
@@ -308,12 +302,19 @@ mod tests {
     async fn test_get_in_timeframe() {
         let mm = get_dev_env().await.unwrap();
 
-        let start_time = Utc.with_ymd_and_hms(2024,12,1,0,0,0).unwrap();
-        let end_time = Utc.with_ymd_and_hms(2024,12,31,23,59,59).unwrap();
+        let start_time = Utc.with_ymd_and_hms(2024, 12, 1, 0, 0, 0).unwrap();
+        let end_time = Utc.with_ymd_and_hms(2024, 12, 31, 23, 59, 59).unwrap();
 
-        let records = RecordsBmc::get_in_timeframe(&mm, 2, start_time.timestamp(), end_time.timestamp()).await.unwrap();
+        let records = RecordsBmc::get_in_timeframe_for_item(
+            &mm,
+            2,
+            start_time.timestamp(),
+            end_time.timestamp(),
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(records.records().len(),2);
+        assert_eq!(records.records().len(), 2);
     }
 
     #[tokio::test]
@@ -325,7 +326,7 @@ mod tests {
 
         // Create first record
         let time = Utc::now().timestamp();
-        let _id = RecordsBmc::create(&mm, item_id, time, false, 10, false)
+        let _id = RecordsBmc::create(&mm, item_id, time, TransactionType::new_in(), 10, None)
             .await
             .unwrap();
 
@@ -336,7 +337,7 @@ mod tests {
 
         // Create second record
         let time = Utc::now().timestamp();
-        let _id = RecordsBmc::create(&mm, item_id, time, true, 3, false)
+        let _id = RecordsBmc::create(&mm, item_id, time, TransactionType::new_out(), 3, None)
             .await
             .unwrap();
 
@@ -351,23 +352,39 @@ mod tests {
         let mm = get_dev_env().await.unwrap();
 
         // Update record where it is not the last one
-        let result = RecordsBmc::update(&mm,1,2,10).await;
+        RecordsBmc::update(&mm, 1, 2, 10).await.unwrap();
 
-        assert!(matches!(result, Err(Error::RecordUpdateForbidden(_))));
+        let last = RecordsBmc::get_last(&mm, 1).await.unwrap();
+
+        assert!(matches!(last.adjustment_remarks(), Some(a) if a == 2));
+        assert!(matches!(
+            last.transaction_type(),
+            TransactionType::AdjustmentOut
+        ));
+        assert_eq!(last.quantity(), 7);
 
         // Update the last record
-        RecordsBmc::update(&mm,1,4,5).await.unwrap();
+        RecordsBmc::update(&mm, 1, 4, 5).await.unwrap();
 
-        let last_total = RecordsBmc::get_last_total(&mm, 1).await.unwrap();
+        let last = RecordsBmc::get_last(&mm, 1).await.unwrap();
 
-        assert_eq!(last_total, 28);
+        assert!(matches!(last.adjustment_remarks(), Some(a) if a == 4));
+        assert!(matches!(
+            last.transaction_type(),
+            TransactionType::AdjustmentIn
+        ));
+        assert_eq!(last.quantity(), 5);
 
-        RecordsBmc::update(&mm,2,14,100).await.unwrap();
+        RecordsBmc::update(&mm, 2, 14, 100).await.unwrap();
 
-        let last_total = RecordsBmc::get_last_total(&mm, 2).await.unwrap();
+        let last = RecordsBmc::get_last(&mm, 2).await.unwrap();
 
-        assert_eq!(last_total, 173);
-
+        assert!(matches!(last.adjustment_remarks(), Some(a) if a == 14));
+        assert!(matches!(
+            last.transaction_type(),
+            TransactionType::AdjustmentIn
+        ));
+        assert_eq!(last.quantity(), 60);
     }
 
     #[tokio::test]
@@ -378,35 +395,26 @@ mod tests {
         let item_id = 1;
 
         // Get the last record before deletion
-        let last_record = RecordsBmc::get_last(&mm, item_id).await.unwrap();
+        let last_record = RecordsBmc::get_last(&mm, item_id).await;
         assert!(last_record.is_some());
 
+        let last_record = last_record.unwrap();
+
         // Delete the record
-        RecordsBmc::delete(&mm, last_record.unwrap().id(), item_id)
+        RecordsBmc::delete(&mm, last_record.id(), item_id)
             .await
             .unwrap();
 
         // Check that the record is deleted
         let last_record_after_delete = RecordsBmc::get_last(&mm, item_id).await.unwrap();
 
-        assert_ne!(
-            last_record_after_delete.unwrap().id(),
-            last_record.unwrap().id()
+        assert!(
+            matches!(last_record_after_delete.adjustment_remarks(), Some(a) if a == last_record.id())
         );
-
-        let target_record = RecordsBmc::get(&mm, 2).await.unwrap();
-
-        let target_quantity = target_record.quantity();
-
-        // Check delete record in the middle it will insert a correction record at the end
-        RecordsBmc::delete(&mm, 2, item_id).await.unwrap();
-
-        // Check that the last record is now the correction record
-        let last_record_after_correction = RecordsBmc::get_last(&mm, item_id).await.unwrap();
-
-        assert!(last_record_after_correction.is_some());
-        assert!(last_record_after_correction.unwrap().correction());
-        assert_eq!(last_record_after_correction.unwrap().quantity(), target_quantity);
-        assert_eq!(last_record_after_correction.unwrap().transaction_type(), target_record.transaction_type().opposite());
+        assert_eq!(
+            last_record_after_delete.transaction_type(),
+            last_record.transaction_type().opposite()
+        );
+        assert_eq!(last_record_after_delete.quantity(), last_record.quantity());
     }
 }
