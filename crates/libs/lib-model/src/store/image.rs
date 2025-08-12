@@ -1,8 +1,11 @@
 use crate::ModelManager;
-use crate::store::image::types::ImageKey;
 use crate::{Error, Result};
 
-pub(crate) mod types;
+// region : Types
+pub struct ImageKey{
+    pub key : String,
+}
+// endregion
 
 pub(crate) struct ImageBmc;
 
@@ -10,8 +13,9 @@ impl ImageBmc {
     pub async fn create(mm: &ModelManager, path: impl AsRef<str>) -> Result<u32> {
         let db = mm.db();
 
-        let result = sqlx::query("INSERT INTO image (key) VALUES ($1)")
-            .bind(path.as_ref())
+        let path = path.as_ref();
+
+        let result = sqlx::query!("INSERT INTO image (key) VALUES ($1)",path)
             .execute(db)
             .await?
             .last_insert_rowid();
@@ -22,8 +26,10 @@ impl ImageBmc {
     pub async fn get(mm: &ModelManager, id: u32) -> Option<ImageKey> {
         let db = mm.db();
 
-        sqlx::query_as::<_, ImageKey>("SELECT key FROM image WHERE id = $1")
-            .bind(id)
+        sqlx::query_as!(
+            ImageKey,
+            "SELECT key FROM image WHERE id = $1",
+        id)
             .fetch_optional(db)
             .await
             .ok()?
@@ -56,7 +62,6 @@ impl ImageBmc {
 #[cfg(test)]
 mod tests {
     use crate::_dev_utils::get_dev_env;
-    use crate::Error::ImageNotFound;
     use crate::store::image::ImageBmc;
     use serial_test::serial;
 
@@ -67,7 +72,7 @@ mod tests {
 
         let result = ImageBmc::get(&mm, 1).await.unwrap();
 
-        assert_eq!(result.key(), "abd0031")
+        assert_eq!(result.key, "abd0031")
     }
 
     #[tokio::test]
@@ -81,7 +86,7 @@ mod tests {
 
         let result = ImageBmc::get(&mm, id).await.unwrap();
 
-        assert_eq!(result.key(), "hellojason");
+        assert_eq!(result.key, "hellojason");
     }
 
     #[tokio::test]
@@ -95,8 +100,8 @@ mod tests {
 
         let updated = ImageBmc::get(&mm, 3).await.unwrap();
 
-        assert_ne!(result.key(), updated.key());
-        assert_eq!(updated.key(), "hello_wakana");
+        assert_ne!(result.key, updated.key);
+        assert_eq!(updated.key, "hello_wakana");
     }
 
     #[tokio::test]
