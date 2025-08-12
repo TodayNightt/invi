@@ -1,7 +1,16 @@
-use crate::ModelManager;
 use crate::error::{Error, Result};
-use crate::store::locations::types::{LocationMetadata, RawLocationMetadata};
-use std::any::Any;
+use crate::ModelManager;
+use lib_schema::ValueStore;
+use sqlx::types::Json;
+
+// region : Types
+#[derive(sqlx::FromRow)]
+pub struct RawLocationMetadata {
+    pub id: i64,
+    pub name: String,
+    pub metadata: Option<Json<ValueStore>>,
+}
+// endregion
 
 //```sql
 // CREATE TABLE IF NOT EXISTS location_metadata (
@@ -13,71 +22,85 @@ use std::any::Any;
 pub(crate) struct LocationMetadataBmc;
 
 impl LocationMetadataBmc {
-    pub async fn create(mm: &ModelManager, name: &str, metadata: &str) -> Result<u32> {
+    pub async fn create(mm: &ModelManager, name: &str, metadata: &str) -> Result<i64> {
         let db = mm.db();
 
-        let result = sqlx::query("INSERT INTO location_metadata (name, metadata) VALUES ($1, $2)")
-            .bind(name)
-            .bind(metadata)
-            .execute(db)
-            .await?
-            .last_insert_rowid();
-
-        Ok(result.try_into()?)
-    }
-
-    pub async fn get(mm: &ModelManager, id: u32) -> Option<LocationMetadata> {
-        let db = mm.db();
-
-        let result = sqlx::query_as::<_, RawLocationMetadata>(
-            "SELECT * FROM location_metadata WHERE id = $1",
+        let result = sqlx::query!(
+            "INSERT INTO location_metadata (name, metadata) VALUES ($1, $2)",
+            name,
+            metadata
         )
-        .bind(id)
-        .fetch_one(db)
-        .await.ok()?;
+        .execute(db)
+        .await?
+        .last_insert_rowid();
 
-        Some(result.into())
+        Ok(result)
     }
 
-    pub async fn get_all(mm: &ModelManager) -> Result<Vec<LocationMetadata>> {
+    pub async fn get(mm: &ModelManager, id: i64) -> Option<RawLocationMetadata> {
         let db = mm.db();
 
-        let result = sqlx::query_as::<_, RawLocationMetadata>("SELECT * FROM location_metadata")
-            .fetch_all(db)
-            .await?;
+        let result = sqlx::query_as!(
+            RawLocationMetadata,
+            r#"SELECT id, name, metadata as "metadata?: Json<ValueStore>"
+                FROM location_metadata
+                WHERE id = $1
+                "#,
+            id
+        )
+            .fetch_one(db)
+            .await
+            .ok()?;
 
-        Ok(result.into_iter().map(|r| r.into()).collect())
+        Some(result)
     }
 
-    pub async fn update_name(mm: &ModelManager, id: u32, name: &str) -> Result<()> {
+    pub async fn get_all(mm: &ModelManager) -> Result<Vec<RawLocationMetadata>> {
         let db = mm.db();
 
-        sqlx::query("UPDATE location_metadata SET name = $1 WHERE id = $2")
-            .bind(name)
-            .bind(id)
+        let result = sqlx::query_as!(
+            RawLocationMetadata,
+            r#"SELECT id, name, metadata as "metadata?: Json<ValueStore>"
+                FROM location_metadata"#
+        )
+        .fetch_all(db)
+        .await?;
+
+        Ok(result)
+    }
+
+    pub async fn update_name(mm: &ModelManager, id: i64, name: &str) -> Result<()> {
+        let db = mm.db();
+
+        sqlx::query!(
+            "UPDATE location_metadata SET name = $1 WHERE id = $2",
+            name,
+            id
+        )
             .execute(db)
             .await?;
 
         Ok(())
     }
 
-    pub async fn update_metadata(mm: &ModelManager, id: u32, metadata: &str) -> Result<()> {
+    pub async fn update_metadata(mm: &ModelManager, id: i64, metadata: &str) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("UPDATE location_metadata SET metadata = $1 WHERE id = $2")
-            .bind(metadata)
-            .bind(id)
+        sqlx::query!(
+            "UPDATE location_metadata SET metadata = $1 WHERE id = $2",
+            metadata,
+            id
+        )
             .execute(db)
             .await?;
 
         Ok(())
     }
 
-    pub async fn delete(mm: &ModelManager, id: u32) -> Result<()> {
+    pub async fn delete(mm: &ModelManager, id: i64) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("DELETE FROM location_metadata WHERE id = $1")
-            .bind(id)
+        sqlx::query!("DELETE FROM location_metadata WHERE id = $1", id)
             .execute(db)
             .await?;
 
@@ -88,7 +111,7 @@ impl LocationMetadataBmc {
 #[cfg(test)]
 mod tests {
     use crate::_dev_utils::get_dev_env;
-    use crate::store::locations::location_metadata::LocationMetadataBmc;
+    use crate::store::location_metadata::LocationMetadataBmc;
     use lib_schema::{Value, ValueStore};
     use serde_json::json;
     use serial_test::serial;
@@ -99,11 +122,11 @@ mod tests {
 
         let result = LocationMetadataBmc::get(&mm, 1).await.unwrap();
 
-        assert_eq!(result.id(), 1);
-        assert_eq!(result.name(), "Container 1");
+        assert_eq!(result.id, 1);
+        assert_eq!(result.name, "Container 1");
         assert!(
             result
-                .metadata()
+                .metadata
                 .clone()
                 .unwrap()
                 .get("racks")
@@ -158,8 +181,8 @@ mod tests {
 
         let result = LocationMetadataBmc::get(&mm, id).await.unwrap();
 
-        assert_ne!(result.id(), 1);
-        assert_eq!(result.name(), "Container Uno");
+        assert_ne!(result.id, 1);
+        assert_eq!(result.name, "Container Uno");
     }
 
     #[tokio::test]
@@ -183,8 +206,8 @@ mod tests {
 
         let result = LocationMetadataBmc::get(&mm, id).await.unwrap();
 
-        assert_ne!(result.id(), 1);
-        assert_eq!(result.name(), "Hall Uno");
+        assert_ne!(result.id, 1);
+        assert_eq!(result.name, "Hall Uno");
 
         drop(mm);
 
@@ -206,11 +229,11 @@ mod tests {
 
         let result = LocationMetadataBmc::get(&mm, id).await.unwrap();
 
-        assert_ne!(result.id(), 1);
+        assert_ne!(result.id, 1);
 
         // FIXME : Get better API for getting data
         let name = result
-            .metadata()
+            .metadata
             .clone()
             .unwrap()
             .get("racks")

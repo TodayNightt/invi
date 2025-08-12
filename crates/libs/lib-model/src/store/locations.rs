@@ -1,10 +1,17 @@
-use crate::store::locations::types::{Location, LocationMetadata, RawLocationMetadata};
 use crate::ModelManager;
 use crate::Result;
+use crate::store::location_metadata::RawLocationMetadata;
+use lib_schema::ValueStore;
+use sqlx::types::Json;
 
-pub mod types;
-
-mod location_metadata;
+// region : Types
+pub struct RawLocation {
+    pub id: i64,
+    pub location: String,
+    pub rack: Option<String>,
+    pub bin: Option<String>,
+}
+// endregion
 
 // ```sql
 // CREATE TABLE IF NOT EXISTS location_data (
@@ -19,92 +26,104 @@ pub struct LocationsBmc;
 impl LocationsBmc {
     pub async fn create(
         mm: &ModelManager,
-        location: u32,
+        location: i64,
         rack: Option<&str>,
         bin: Option<&str>,
-    ) -> Result<u32> {
+    ) -> Result<i64> {
         let db = mm.db();
 
         let result =
-            sqlx::query("INSERT INTO location_data (location, rack, bin) VALUES ($1, $2, $3)")
-                .bind(location)
-                .bind(rack)
-                .bind(bin)
+            sqlx::query!(
+                "INSERT INTO location_data (location, rack, bin) VALUES ($1, $2, $3)",
+                location, rack, bin
+            )
                 .execute(db)
                 .await?
                 .last_insert_rowid();
 
-        Ok(result.try_into()?)
+        Ok(result)
     }
 
     pub async fn get_location_metadata_for_id(
         mm: &ModelManager,
-        id: u32,
-    ) -> Option<LocationMetadata> {
+        id: i64,
+    ) -> Option<RawLocationMetadata> {
         let db = mm.db();
 
-        let result =
-            sqlx::query_as::<_,RawLocationMetadata>("SELECT * FROM location_metadata WHERE id = (SELECT location FROM location_data WHERE id = $1)")
-                .bind(id)
+        let result = sqlx::query_as!(
+                RawLocationMetadata,
+                r#"SELECT id, name, metadata as "metadata?: Json<ValueStore>"
+                   FROM location_metadata
+                   WHERE id = (SELECT location FROM location_data WHERE id = $1)"#,
+                id
+            )
                 .fetch_one(db)
                 .await.ok()?;
 
-        Some(result.into())
+        Some(result)
     }
 
-    pub async fn get(mm: &ModelManager, id: u32) -> Option<Location> {
+    pub async fn get(mm: &ModelManager, id: i64) -> Option<RawLocation> {
         let db = mm.db();
 
-        sqlx::query_as::<_, Location>(
-            "SELECT ld.id, ld.rack, ld.bin, lm.name as location FROM location_data ld JOIN location_metadata lm ON ld.location = lm.id WHERE ld.id = $1"
+        sqlx::query_as!(
+            RawLocation,
+            "SELECT ld.id, ld.rack, ld.bin, lm.name as location
+             FROM location_data ld JOIN location_metadata lm ON ld.location = lm.id
+             WHERE ld.id = $1",
+            id
         )
-            .bind(id)
             .fetch_optional(db)
             .await
             .ok()?
     }
 
-    pub async fn update_location(mm: &ModelManager, id: u32, location: u32) -> Result<()> {
+    pub async fn update_location(mm: &ModelManager, id: i64, location: i64) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("UPDATE location_data SET location = $1 WHERE id = $2")
-            .bind(location)
-            .bind(id)
+        sqlx::query!(
+            "UPDATE location_data SET location = $1 WHERE id = $2",
+            location, id
+        )
             .execute(db)
             .await?;
 
         Ok(())
     }
 
-    pub async fn update_rack(mm: &ModelManager, id: u32, rack: Option<&str>) -> Result<()> {
+    pub async fn update_rack(mm: &ModelManager, id: i64, rack: Option<&str>) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("UPDATE location_data SET rack = $1 WHERE id = $2")
-            .bind(rack)
-            .bind(id)
+        sqlx::query!(
+            "UPDATE location_data SET rack = $1 WHERE id = $2",
+            rack, id
+        )
             .execute(db)
             .await?;
 
         Ok(())
     }
 
-    pub async fn update_bin(mm: &ModelManager, id: u32, bin: Option<&str>) -> Result<()> {
+    pub async fn update_bin(mm: &ModelManager, id: i64, bin: Option<&str>) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("UPDATE location_data SET bin = $1 WHERE id = $2")
-            .bind(bin)
-            .bind(id)
+        sqlx::query!(
+            "UPDATE location_data SET bin = $1 WHERE id = $2",
+            bin, id
+        )
             .execute(db)
             .await?;
 
         Ok(())
     }
 
-    pub async fn delete(mm: &ModelManager, id: u32) -> Result<()> {
+    pub async fn delete(mm: &ModelManager, id: i64) -> Result<()> {
         let db = mm.db();
 
-        sqlx::query("DELETE FROM location_data WHERE id = $1")
-            .bind(id)
+        sqlx::query!(
+            "DELETE FROM location_data WHERE id = $1",
+            id
+        )
             .execute(db)
             .await?;
 
@@ -125,13 +144,13 @@ mod tests {
 
         let result = LocationsBmc::get(&mm, 1).await.unwrap();
 
-        assert_eq!(result.location(), "Container 1");
-        assert!(matches!(result.rack(), Some(rack) if rack.eq("Rack 1")));
+        assert_eq!(result.location, "Container 1");
+        assert!(matches!(result.rack, Some(rack) if rack.eq("Rack 1")));
 
         let result = LocationsBmc::get(&mm, 2).await.unwrap();
 
-        assert_eq!(result.location(), "Hall 1");
-        assert!(result.rack().is_none())
+        assert_eq!(result.location, "Hall 1");
+        assert!(result.rack.is_none())
     }
 
     #[tokio::test]
@@ -143,7 +162,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.name(), "Container 1");
+        assert_eq!(result.name, "Container 1");
     }
 
     #[tokio::test]
@@ -157,43 +176,47 @@ mod tests {
 
         let result = LocationsBmc::get(&mm, id).await.unwrap();
 
-        assert!(matches!(result.bin(), Some(a) if a.eq("Bin 3")));
-        assert!(result.rack().is_none());
+        assert!(matches!(result.bin, Some(a) if a.eq("Bin 3")));
+        assert!(result.rack.is_none());
     }
 
     #[tokio::test]
     #[serial]
     async fn test_update_rack() {
         let mm = get_dev_env().await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert!(result.rack().is_none());
-        LocationsBmc::update_rack(&mm, 2, Some("Rack uno")).await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert!(result.rack().is_some());
-        assert_eq!(result.rack().clone().unwrap(), "Rack uno");
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert!(result.rack.is_none());
+        LocationsBmc::update_rack(&mm, 2, Some("Rack uno"))
+            .await
+            .unwrap();
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert!(result.rack.is_some());
+        assert_eq!(result.rack.clone().unwrap(), "Rack uno");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_update_bin() {
         let mm = get_dev_env().await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert!(result.bin().is_none());
-        LocationsBmc::update_bin(&mm, 2, Some("Bin uno")).await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert!(result.bin().is_some());
-        assert_eq!(result.bin().clone().unwrap(), "Bin uno");
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert!(result.bin.is_none());
+        LocationsBmc::update_bin(&mm, 2, Some("Bin uno"))
+            .await
+            .unwrap();
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert!(result.bin.is_some());
+        assert_eq!(result.bin.clone().unwrap(), "Bin uno");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_update_location() {
         let mm = get_dev_env().await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert_eq!(result.location(),"Hall 1");
-        LocationsBmc::update_location(&mm, 2,1).await.unwrap();
-        let result = LocationsBmc::get(&mm,2).await.unwrap();
-        assert_eq!(result.location(),"Container 1");
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert_eq!(result.location, "Hall 1");
+        LocationsBmc::update_location(&mm, 2, 1).await.unwrap();
+        let result = LocationsBmc::get(&mm, 2).await.unwrap();
+        assert_eq!(result.location, "Container 1");
     }
 
     #[tokio::test]
@@ -201,9 +224,9 @@ mod tests {
     async fn test_delete() {
         let mm = get_dev_env().await.unwrap();
 
-        LocationsBmc::delete(&mm,2).await.unwrap();
+        LocationsBmc::delete(&mm, 2).await.unwrap();
 
-        let result = LocationsBmc::get(&mm,2).await;
+        let result = LocationsBmc::get(&mm, 2).await;
 
         assert!(result.is_none());
     }
