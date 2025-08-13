@@ -1,7 +1,15 @@
-use crate::store::items::types::{Item, Items};
 use crate::{Error, ModelManager, Result};
+use lib_schema::ValueStore;
+use sqlx::types::Json;
 
-pub mod types;
+#[derive(Debug, sqlx::FromRow)]
+pub struct RawItem {
+    pub id: i64,
+    pub location: i64,
+    pub name: String,
+    pub item_metadata: Json<ValueStore>,
+    pub image: String,
+}
 
 /// ```sql
 //    /table items{
@@ -20,58 +28,84 @@ impl ItemsBmc {
         mm: &ModelManager,
         name: &str,
         metadata: &str,
-        image_data: u32,
-        location: u32,
-    ) -> Result<u32> {
+        image_data: i64,
+        location: i64,
+    ) -> Result<i64> {
         // Create an item
         let db = mm.db();
 
-        let id: i64 = sqlx::query(
+        let id = sqlx::query!(
             "INSERT INTO items (name, item_metadata, location, image) VALUES ($1, $2, $3, $4)",
+            name,
+            metadata,
+            location,
+            image_data
         )
-            .bind(name)
-            .bind(metadata)
-            .bind(location)
-            .bind(image_data)
-            .execute(db)
-            .await
-            .map_err(|err| match err {
-                sqlx::error::Error::RowNotFound => {
-                    Error::QueryError(format!("Failed to create item: {}", name))
-                }
-                _ => err.into(),
-            })?
-            .last_insert_rowid();
+        .execute(db)
+        .await
+        .map_err(|err| match err {
+            sqlx::error::Error::RowNotFound => {
+                Error::QueryError(format!("Failed to create item: {}", name))
+            }
+            _ => err.into(),
+        })?
+        .last_insert_rowid();
 
-        Ok(id.try_into()?)
+        Ok(id)
     }
 
-    pub async fn get(mm: &ModelManager, item_id: u32) -> Option<Item> {
+    pub async fn get_from_range(mm: &ModelManager, until_id: i64, limit: u32) -> Result<Vec<RawItem>> {
         let db = mm.db();
 
-        // Read an item by ID
-        sqlx::query_as::<_, Item>(
-            "SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id WHERE i.id = $1")
-            .bind(item_id)
-            .fetch_optional(db)
-            .await
-            .ok()?
-    }
-    
-    pub async fn get_all(mm: &ModelManager) -> Result<Items> {
-        let db = mm.db();
-
-        let result = sqlx::query_as::<_, Item>("SELECT i.id, i.name, i.item_metadata, im.key, i.location FROM items i JOIN image im ON i.image = im.id").fetch_all(db).await?;
+        let result = sqlx::query_as!(
+            RawItem,
+            r#"SELECT i.id, i.name, i.item_metadata as "item_metadata: Json<ValueStore>", im.key as image, i.location
+                FROM items i JOIN image im ON i.image = im.id
+                WHERE i.id > $1 ORDER BY i.id LIMIT $2"#,
+            until_id, limit
+        )
+            .fetch_all(db)
+            .await?;
 
         Ok(result)
     }
 
-    pub async fn update_name(mm: &ModelManager, item_id: u32, updated_name: &str) -> Option<()> {
+    pub async fn get(mm: &ModelManager, item_id: i64) -> Option<RawItem> {
         let db = mm.db();
 
-        let result = sqlx::query("UPDATE items SET name = $1 WHERE id = $2")
-            .bind(updated_name)
-            .bind(item_id)
+        // Read an item by ID
+        sqlx::query_as!(
+            RawItem,
+            r#"SELECT i.id, i.name, i.item_metadata as "item_metadata: Json<ValueStore>", im.key as image, i.location
+                FROM items i JOIN image im ON i.image = im.id
+                WHERE i.id = $1"#,
+            item_id
+        )
+            .fetch_optional(db)
+            .await
+            .ok()?
+    }
+
+    pub async fn get_all(mm: &ModelManager) -> Result<Vec<RawItem>> {
+        let db = mm.db();
+
+        let result = sqlx::query_as!(
+            RawItem,
+            r#"SELECT i.id, i.name, i.item_metadata as "item_metadata: Json<ValueStore>", im.key as image, i.location
+                FROM items i JOIN image im ON i.image = im.id"#
+        )
+            .fetch_all(db).await?;
+
+        Ok(result)
+    }
+
+    pub async fn update_name(mm: &ModelManager, item_id: i64, updated_name: &str) -> Option<()> {
+        let db = mm.db();
+
+        let result = sqlx::query!(
+            "UPDATE items SET name = $1 WHERE id = $2",
+            updated_name, item_id
+        )
             .execute(db)
             .await
             .ok()?
@@ -84,12 +118,13 @@ impl ItemsBmc {
         Some(())
     }
 
-    pub async fn update_metadata(mm: &ModelManager, item_id: u32, metadata: &str) -> Option<()> {
+    pub async fn update_metadata(mm: &ModelManager, item_id: i64, metadata: &str) -> Option<()> {
         let db = mm.db();
 
-        let result = sqlx::query("UPDATE items SET item_metadata = $1 WHERE id = $2")
-            .bind(metadata)
-            .bind(item_id)
+        let result = sqlx::query!(
+            "UPDATE items SET item_metadata = $1 WHERE id = $2",
+            metadata, item_id
+        )
             .execute(db)
             .await
             .ok()?
@@ -102,12 +137,14 @@ impl ItemsBmc {
         Some(())
     }
 
-    pub async fn delete(mm: &ModelManager, item_id: u32) -> Option<u32> {
+    pub async fn delete(mm: &ModelManager, item_id: i64) -> Option<i64> {
         let db = mm.db();
 
         // Delete an item by ID
-        let rows_affected = sqlx::query("DELETE FROM items WHERE id = $1")
-            .bind(item_id)
+        let rows_affected = sqlx::query!(
+            "DELETE FROM items WHERE id = $1",
+            item_id
+        )
             .execute(db)
             .await
             .ok()?
@@ -135,9 +172,9 @@ mod tests {
 
         let item = ItemsBmc::get(&mm, 1).await.unwrap();
 
-        assert_eq!(item.id(), 1);
+        assert_eq!(item.id,1);
 
-        assert_eq!(item.name(), "Item 1");
+        assert_eq!(item.name, "Item 1");
     }
 
     #[tokio::test]
@@ -159,11 +196,11 @@ mod tests {
 
         let item = ItemsBmc::get(&mm, id).await.unwrap();
 
-        assert_eq!(item.id(), id);
+        assert_eq!(item.id, id);
 
-        assert_eq!(item.name(), "TestItem2");
+        assert_eq!(item.name, "TestItem2");
 
-        let metadata = item.metadata();
+        let metadata = item.item_metadata;
 
         let metadata = metadata.get("test_key").unwrap();
 
@@ -192,7 +229,7 @@ mod tests {
 
         let result_item = ItemsBmc::get(&mm, id).await.unwrap();
 
-        assert_eq!(result_item.name(), updated_name);
+        assert_eq!(result_item.name, updated_name);
 
         // Clean up
         ItemsBmc::delete(&mm, id).await.unwrap();
@@ -221,7 +258,7 @@ mod tests {
 
         let result_item = ItemsBmc::get(&mm, id).await.unwrap();
 
-        let metadata = result_item.metadata();
+        let metadata = result_item.item_metadata;
 
         let metadata_value = metadata.get("a").unwrap();
 
