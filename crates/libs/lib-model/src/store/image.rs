@@ -1,5 +1,5 @@
 use crate::ModelManager;
-use crate::{Error, Result};
+use crate::Result;
 
 // region : Types
 pub struct ImageKey{
@@ -10,7 +10,7 @@ pub struct ImageKey{
 pub(crate) struct ImageBmc;
 
 impl ImageBmc {
-    pub async fn create(mm: &ModelManager, path: impl AsRef<str>) -> Result<u32> {
+    pub async fn create(mm: &ModelManager, path: impl AsRef<str>) -> Result<i64> {
         let db = mm.db();
 
         let path = path.as_ref();
@@ -20,10 +20,10 @@ impl ImageBmc {
             .await?
             .last_insert_rowid();
 
-        Ok(result.try_into()?)
+        Ok(result)
     }
 
-    pub async fn get(mm: &ModelManager, id: u32) -> Option<ImageKey> {
+    pub async fn get(mm: &ModelManager, id: i64) -> Option<ImageKey> {
         let db = mm.db();
 
         sqlx::query_as!(
@@ -35,7 +35,7 @@ impl ImageBmc {
             .ok()?
     }
 
-    pub async fn update(mm: &ModelManager, id: u32, key: impl AsRef<str>) -> Result<()> {
+    pub async fn update(mm: &ModelManager, id: i64, key: impl AsRef<str>) -> Result<()> {
         let db = mm.db();
 
         sqlx::query("UPDATE image SET key = $1 WHERE id = $2")
@@ -47,7 +47,7 @@ impl ImageBmc {
         Ok(())
     }
 
-    pub async fn delete(mm: &ModelManager, id: u32) -> Result<()> {
+    pub async fn delete(mm: &ModelManager, id: i64) -> Result<()> {
         let db = mm.db();
 
         sqlx::query("DELETE FROM image WHERE id = $1")
