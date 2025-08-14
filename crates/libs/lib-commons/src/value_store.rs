@@ -1,14 +1,15 @@
+pub use error::{Result, ValueStoreError};
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value as SerdeValue};
+use std::fmt::{Display, Formatter};
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use std::fmt::{Display, Formatter};
-use serde::{Deserialize, Serialize};
+use crate::value::Value;
 
-use crate::{Value, schema};
-pub(crate) use error::{Result,ValueStoreError};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ValueStore {
     schema_name: Option<String>,
     object_properties_schemas: Arc<HashMap<String, String>>,
@@ -101,10 +102,18 @@ impl ValueStore {
             Err(ValueStoreError::NotAnObject)
         }
     }
+
+    pub fn with_values(mut self, values: SerdeValue) -> Option<Self> {
+        self.values = values.as_object()?
+            .into_iter()
+            .map(|(k, v)| (k.clone(), v.clone().into()))
+            .collect();
+        Some(self)
+    }
 }
 
 impl TryFrom<Value> for ValueStore {
-    type Error = crate::Error;
+    type Error = ValueStoreError;
     fn try_from(value: Value) -> core::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
@@ -144,32 +153,44 @@ impl TryFrom<Value> for ValueStore {
     }
 }
 
-impl Display for ValueStore{
+impl Display for ValueStore {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&serde_json::to_string(self).map_err(|_| std::fmt::Error)?)
     }
 }
 
 impl TryFrom<&Value> for ValueStore {
-    type Error = crate::Error;
-    fn try_from(value: &Value) ->  core::result::Result<Self, Self::Error> {
+    type Error = ValueStoreError;
+    fn try_from(value: &Value) -> core::result::Result<Self, Self::Error> {
         value.clone().try_into()
     }
 }
 
-impl TryFrom<serde_json::Value> for ValueStore {
-    type Error = crate::Error;
-    fn try_from(value: serde_json::Value) -> core::result::Result<Self, Self::Error> {
+impl TryFrom<SerdeValue> for ValueStore {
+    type Error = ValueStoreError;
+    fn try_from(value: SerdeValue) -> core::result::Result<Self, Self::Error> {
         let value: Value = value.into();
         value.try_into()
     }
 }
 
-impl TryFrom<&serde_json::Value> for ValueStore {
-    type Error = crate::Error;
-    fn try_from(value: &serde_json::Value) -> core::result::Result<Self, Self::Error> {
+impl TryFrom<&SerdeValue> for ValueStore {
+    type Error = ValueStoreError;
+    fn try_from(value: &SerdeValue) -> core::result::Result<Self, Self::Error> {
         value.clone().try_into()
     }
+}
+
+#[macro_export]
+macro_rules! value {
+    ($schema_name:ident => $value:expr) => {{
+        let values: Map<String, SerdeValue> = $value.into();
+        let values = values
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect();
+        ValueStore::new($schema_name).with_values(values)
+    }};
 }
 
 mod error {

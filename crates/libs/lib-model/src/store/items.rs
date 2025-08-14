@@ -1,5 +1,5 @@
 use crate::{Error, ModelManager, Result};
-use lib_schema::ValueStore;
+use lib_commons::ValueStore;
 use sqlx::types::Json;
 
 #[derive(Debug, sqlx::FromRow)]
@@ -162,7 +162,7 @@ impl ItemsBmc {
 mod tests {
     use crate::_dev_utils::get_dev_env;
     use crate::store::items::ItemsBmc;
-    use lib_schema::ValueStore;
+    use lib_commons::ValueStore;
     use serial_test::serial;
 
     #[tokio::test]

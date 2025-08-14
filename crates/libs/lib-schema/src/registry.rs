@@ -1,10 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::{
-    schema::{self, Schema},
-    validator::Validator,
-    value_store::ValueStore,
-};
+use crate::schema::Schema;
 
 #[derive(Debug, Default)]
 pub struct Registry {

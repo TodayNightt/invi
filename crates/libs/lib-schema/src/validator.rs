@@ -1,8 +1,10 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
-use crate::{Registry, Schema, ValueStore};
+use crate::{Registry, Schema};
 
 pub(crate) use error::{Result, ValidatorError};
+
+use lib_commons::ValueStore;
 
 pub(crate) struct Validator {
     registry: Arc<Mutex<Registry>>,
@@ -67,7 +69,7 @@ impl Validator {
                 Some(schema_name.clone()),
                 value,
                 object_properties_schema.clone(),
-            )?;
+            ).map_err(ValidatorError::ValueStoreError)?;
 
             self._validate(&schema, &temp)?;
         }
@@ -105,8 +107,6 @@ impl Validator {
 
 mod error {
     use std::fmt;
-
-    use crate::value_store;
     pub type Result<T> = std::result::Result<T, ValidatorError>;
 
     #[derive(Debug)]
@@ -118,11 +118,11 @@ mod error {
         SchemaIndentifierMissing,
 
         // -- ValueStoreError --
-        ValueStoreError(value_store::ValueStoreError),
+        ValueStoreError(lib_commons::ValueStoreError),
     }
 
-    impl From<value_store::ValueStoreError> for ValidatorError {
-        fn from(err: value_store::ValueStoreError) -> Self {
+    impl From<lib_commons::ValueStoreError> for ValidatorError {
+        fn from(err: lib_commons::ValueStoreError) -> Self {
             ValidatorError::ValueStoreError(err)
         }
     }

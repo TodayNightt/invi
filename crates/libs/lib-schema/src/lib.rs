@@ -1,24 +1,21 @@
 mod registry;
 mod schema;
-mod types;
 mod validator;
-mod value_store;
 
 pub use error::{Error, Result};
+pub use lib_commons::{Field, FieldType};
 pub use registry::Registry;
 pub use schema::Schema;
-pub use types::{Field, FieldType, Value};
-pub use value_store::ValueStore;
 
 mod error {
     pub type Result<T> = core::result::Result<T, Error>;
 
-    use crate::{validator, value_store};
+    use crate::validator;
 
     #[derive(Debug)]
     pub enum Error {
         ValidationError(validator::ValidatorError),
-        ValueStoreError(value_store::ValueStoreError),
+        ValueStoreError(lib_commons::ValueStoreError),
     }
 
     impl From<validator::ValidatorError> for Error {
@@ -27,8 +24,8 @@ mod error {
         }
     }
 
-    impl From<value_store::ValueStoreError> for Error {
-        fn from(value: value_store::ValueStoreError) -> Self {
+    impl From<lib_commons::ValueStoreError> for Error {
+        fn from(value: lib_commons::ValueStoreError) -> Self {
             Error::ValueStoreError(value)
         }
     }
@@ -44,21 +41,15 @@ mod error {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::BTreeMap,
-        sync::{Arc, Mutex},
-    };
-
-    use serde_json::json;
+    use std::sync::{Arc, Mutex};
 
     use crate::{
-        FieldType, Value,
-        registry::{self, Registry},
+        registry::Registry,
         schema::Schema,
-        types::Field,
         validator::Validator,
-        value_store::ValueStore,
     };
+    use lib_commons::{Field, FieldType, Value, ValueStore};
+    use serde_json::json;
 
     #[test]
     fn test_schema_creation() {

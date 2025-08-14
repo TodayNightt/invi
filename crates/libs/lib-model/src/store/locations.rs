@@ -1,7 +1,7 @@
 use crate::ModelManager;
 use crate::Result;
 use crate::store::location_metadata::RawLocationMetadata;
-use lib_schema::ValueStore;
+use lib_commons::ValueStore;
 use sqlx::types::Json;
 
 // region : Types

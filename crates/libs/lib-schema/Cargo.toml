@@ -7,7 +7,6 @@ edition = "2024"
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 
-lib-utils = { workspace = true }
-
+lib-commons = { workspace = true }
 [lints]
 workspace = true

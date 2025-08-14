@@ -6,12 +6,13 @@ edition = "2024"
 [dependencies]
 serde_json = { workspace = true, features = ["raw_value"] }
 serde = { workspace = true }
-sqlx = { workspace = true, features = ["chrono"] }
+sqlx = { workspace = true, features = ["chrono", "sqlite", "runtime-tokio"] }
 tokio = { workspace = true }
-chrono = {workspace = true}
+chrono = { workspace = true }
+redb = { workspace = true }
+uuid = { workspace = true, features = ["v7", "std"] }
 
-lib-utils = { path = "../lib-utils" }
-lib-schema = { path = "../lib-schema" }
+lib-commons = { workspace = true ,features = ["sqlx"] }
 
 [dev-dependencies]
-serial_test = {workspace = true}
+serial_test = { workspace = true }

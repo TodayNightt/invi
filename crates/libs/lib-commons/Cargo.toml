@@ -1,0 +1,15 @@
+[package]
+name = "lib-commons"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { workspace = true, features = ["derive","rc"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sqlx = { workspace = true, optional = true }
+
+[lints]
+workspace = true
+
+[features]
+sqlx = ["dep:sqlx", "serde_json/raw_value"]

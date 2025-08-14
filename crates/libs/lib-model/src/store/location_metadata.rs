@@ -1,6 +1,6 @@
 use crate::error::{Error, Result};
 use crate::ModelManager;
-use lib_schema::ValueStore;
+use lib_commons::ValueStore;
 use sqlx::types::Json;
 
 // region : Types
@@ -112,7 +112,7 @@ impl LocationMetadataBmc {
 mod tests {
     use crate::_dev_utils::get_dev_env;
     use crate::store::location_metadata::LocationMetadataBmc;
-    use lib_schema::{Value, ValueStore};
+    use lib_commons::{Value, ValueStore};
     use serde_json::json;
     use serial_test::serial;
     #[tokio::test]

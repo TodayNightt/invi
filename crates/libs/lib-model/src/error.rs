@@ -13,10 +13,11 @@ pub enum Error {
     ImageNotFound(String),
 
     RecordUpdateForbidden(String),
+    RecordCreationForbidden(String),
 
     IntegerConversionError(String),
-
-    LibSchemaError(lib_schema::Error),
+    
+    RedDbError(redb::Error),
 }
 
 impl From<sqlx::Error> for Error {
@@ -31,9 +32,9 @@ impl From<sqlx::Error> for Error {
     }
 }
 
-impl From<lib_schema::Error> for Error {
-    fn from(err: lib_schema::Error) -> Self {
-        Self::LibSchemaError(err)
+impl From<redb::Error> for Error {
+    fn from(err: redb::Error) -> Self {
+        Self::RedDbError(err)
     }
 }
 
