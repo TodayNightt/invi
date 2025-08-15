@@ -4,7 +4,11 @@ use chrono::{DateTime, Utc};
 use sqlx::error::BoxDynError;
 use sqlx::{Database, Decode, FromRow};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 // region : Types
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, FromRow)]
 pub struct RawRecord {
     pub id: i64,
@@ -16,6 +20,7 @@ pub struct RawRecord {
     pub adjustment_remarks: Option<i64>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum TransactionType {

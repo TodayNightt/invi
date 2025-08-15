@@ -16,3 +16,6 @@ lib-commons = { workspace = true ,features = ["sqlx"] }
 
 [dev-dependencies]
 serial_test = { workspace = true }
+
+[features]
+serde = ["chrono/serde"]

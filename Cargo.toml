@@ -17,7 +17,7 @@ serde_json = "1"
 tokio = { version = "1.30", features = ["full"] }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json"] }
 lib-core = { path = "crates/libs/lib-core" }
-lib-model = { path = "crates/libs/lib-model" }
+lib-model = { path = "crates/libs/lib-model", features = ["serde"] }
 lib-utils = { path = "crates/libs/lib-utils" }
 lib-schema = { path = "crates/libs/lib-schema" }
 lib-commons = { path = "crates/libs/lib-commons" }
