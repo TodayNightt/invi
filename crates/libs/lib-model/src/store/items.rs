@@ -137,6 +137,25 @@ impl ItemsBmc {
         Some(())
     }
 
+    pub async fn update_image(mm: &ModelManager, item_id: i64, updated_image: i64) -> Option<()> {
+        let db = mm.db();
+
+        let result = sqlx::query!(
+            "UPDATE items SET image = $1 WHERE id = $2",
+            updated_image, item_id
+        )
+            .execute(db)
+            .await
+            .ok()?
+            .rows_affected();
+
+        if result.lt(&1) {
+            return None;
+        }
+
+        Some(())
+    }
+
     pub async fn delete(mm: &ModelManager, item_id: i64) -> Option<i64> {
         let db = mm.db();
 
