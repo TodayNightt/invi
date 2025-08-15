@@ -91,7 +91,7 @@ impl LocationsBmc {
         Ok(())
     }
 
-    pub async fn update_rack(mm: &ModelManager, id: i64, rack: Option<&str>) -> Result<()> {
+    async fn update_rack(mm: &ModelManager, id: i64, rack: Option<&str>) -> Result<()> {
         let db = mm.db();
 
         sqlx::query!(
@@ -104,7 +104,7 @@ impl LocationsBmc {
         Ok(())
     }
 
-    pub async fn update_bin(mm: &ModelManager, id: i64, bin: Option<&str>) -> Result<()> {
+    async fn update_bin(mm: &ModelManager, id: i64, bin: Option<&str>) -> Result<()> {
         let db = mm.db();
 
         sqlx::query!(
@@ -126,6 +126,18 @@ impl LocationsBmc {
         )
             .execute(db)
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn update(mm: &ModelManager, id: i64, rack : Option<Option<&str>>,bin :Option<Option<&str>>) -> Result<()> {
+        if let Some(rack) = rack {
+            LocationsBmc::update_rack(mm,id,rack).await?;
+        }
+
+        if let Some(bin) = bin {
+            LocationsBmc::update_bin(mm, id, bin).await?;
+        }
 
         Ok(())
     }
