@@ -22,7 +22,7 @@ pub struct RawLocationMetadata {
 pub(crate) struct LocationMetadataBmc;
 
 impl LocationMetadataBmc {
-    pub async fn create(mm: &ModelManager, name: &str, metadata: &str) -> Result<i64> {
+    pub async fn create(mm: &ModelManager, name: &str, metadata: Option<&str>) -> Result<i64> {
         let db = mm.db();
 
         let result = sqlx::query!(
@@ -83,7 +83,7 @@ impl LocationMetadataBmc {
         Ok(())
     }
 
-    pub async fn update_metadata(mm: &ModelManager, id: i64, metadata: &str) -> Result<()> {
+   pub async fn update_metadata(mm: &ModelManager, id: i64, metadata: Option<&str>) -> Result<()> {
         let db = mm.db();
 
         sqlx::query!(
@@ -150,11 +150,11 @@ mod tests {
             }))],
         );
 
-        let _ = LocationMetadataBmc::create(&mm, "Can 1", &metadata.to_string())
+        let _ = LocationMetadataBmc::create(&mm, "Can 1", Some(&metadata.to_string()))
             .await
             .unwrap();
 
-        let _ = LocationMetadataBmc::create(&mm, "Can 2", &metadata.to_string())
+        let _ = LocationMetadataBmc::create(&mm, "Can 2", Some(&metadata.to_string()))
             .await
             .unwrap();
 
@@ -175,7 +175,7 @@ mod tests {
             }))],
         );
 
-        let id = LocationMetadataBmc::create(&mm, "Container Uno", &metadata.to_string())
+        let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
             .unwrap();
 
@@ -196,7 +196,7 @@ mod tests {
             }))],
         );
         // Update name
-        let id = LocationMetadataBmc::create(&mm, "Container Uno", &metadata.to_string())
+        let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
             .unwrap();
 
@@ -213,7 +213,7 @@ mod tests {
 
         let mm = get_dev_env().await.unwrap();
 
-        let id = LocationMetadataBmc::create(&mm, "Container Uno", &metadata.to_string())
+        let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
             .unwrap();
 
@@ -223,7 +223,7 @@ mod tests {
                 "name" : "Cupboard Uno"
             }))],
         );
-        LocationMetadataBmc::update_metadata(&mm, id, &metadata.to_string())
+        LocationMetadataBmc::update_metadata(&mm, id, Some(&metadata.to_string()))
             .await
             .unwrap();
 
@@ -264,7 +264,7 @@ mod tests {
             }))],
         );
         // Update name
-        let id = LocationMetadataBmc::create(&mm, "Container Uno", &metadata.to_string())
+        let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
             .unwrap();
 
