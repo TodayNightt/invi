@@ -6,7 +6,7 @@ members = [
     "crates/services/invi/src-tauri",
     "crates/services/invi",
     "crates/libs/lib-schema",
-    "crates/libs/lib-sync", "crates/libs/lib-image", "crates/libs/lib-export", "crates/services/s", "crates/libs/lib-commons",
+    "crates/libs/lib-sync", "crates/libs/lib-image", "crates/libs/lib-export", "crates/services/s", "crates/libs/lib-commons", "crates/libs/lib-model-data",
 ]
 resolver = "3"
 

@@ -1,6 +1,6 @@
-use crate::ModelManager;
-use crate::{Error, Result};
 use chrono::{DateTime, Utc};
+use lib_model::ModelManager;
+use lib_model::{Error, Result};
 use sqlx::error::BoxDynError;
 use sqlx::{Database, Decode, FromRow};
 
@@ -339,10 +339,10 @@ impl RecordsBmc {
 
 #[cfg(test)]
 mod tests {
-    use crate::_dev_utils::get_dev_env;
     use crate::store::records::RecordsBmc;
     use crate::store::records::TransactionType;
     use chrono::{TimeZone, Utc};
+    use lib_model::_dev_utils::get_dev_env;
     use serial_test::serial;
     use std::time::Duration;
     use tokio::time::sleep;

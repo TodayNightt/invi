@@ -1,4 +1,4 @@
-use crate::{Error, ModelManager, Result};
+use lib_model::{Error, ModelManager, Result};
 use lib_commons::ValueStore;
 use sqlx::types::Json;
 
@@ -179,7 +179,7 @@ impl ItemsBmc {
 
 #[cfg(test)]
 mod tests {
-    use crate::_dev_utils::get_dev_env;
+    use lib_model::_dev_utils::get_dev_env;
     use crate::store::items::ItemsBmc;
     use lib_commons::ValueStore;
     use serial_test::serial;

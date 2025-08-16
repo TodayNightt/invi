@@ -1,5 +1,5 @@
-use crate::error::{Error, Result};
-use crate::ModelManager;
+use lib_model::{Error, Result};
+use lib_model::ModelManager;
 use lib_commons::ValueStore;
 use sqlx::types::Json;
 
@@ -110,11 +110,12 @@ impl LocationMetadataBmc {
 
 #[cfg(test)]
 mod tests {
-    use crate::_dev_utils::get_dev_env;
     use crate::store::location_metadata::LocationMetadataBmc;
     use lib_commons::{Value, ValueStore};
+    use lib_model::_dev_utils::get_dev_env;
     use serde_json::json;
     use serial_test::serial;
+
     #[tokio::test]
     #[serial]
     async fn test_get() {
