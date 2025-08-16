@@ -1,0 +1,26 @@
+[package]
+name = "lib-model-data"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lib-commons = { workspace = true, features = ["sqlx"]}
+lib-model = { workspace = true }
+
+serde_json = { workspace = true, features = ["raw_value"] }
+serde = { workspace = true }
+sqlx = { workspace = true, features = ["chrono", "sqlite", "runtime-tokio"] }
+tokio = { workspace = true }
+chrono = { workspace = true }
+redb = { workspace = true }
+uuid = { workspace = true, features = ["v7", "std"] }
+
+[dev-dependencies]
+serial_test = { workspace = true }
+
+[lints]
+workspace = true
+
+
+[features]
+serde = []

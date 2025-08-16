@@ -1,5 +1,5 @@
-use crate::ModelManager;
-use crate::Result;
+use lib_model::ModelManager;
+use lib_model::Result;
 
 // region : Types
 pub struct ImageKey{
@@ -61,7 +61,7 @@ impl ImageBmc {
 
 #[cfg(test)]
 mod tests {
-    use crate::_dev_utils::get_dev_env;
+    use lib_model::_dev_utils::get_dev_env;
     use crate::store::image::ImageBmc;
     use serial_test::serial;
 
