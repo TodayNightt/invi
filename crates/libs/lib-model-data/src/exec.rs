@@ -815,10 +815,6 @@ pub async fn remove_location(
 
 // endregion
 
-// region : Schema
-
-// endregion
-
 #[cfg(test)]
 mod tests {
     use crate::exec::register_item;
