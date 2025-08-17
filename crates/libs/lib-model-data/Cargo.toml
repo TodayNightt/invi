@@ -23,4 +23,4 @@ workspace = true
 
 
 [features]
-serde = []
+serde = ["chrono/serde"]
