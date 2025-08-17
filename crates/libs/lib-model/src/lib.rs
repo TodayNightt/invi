@@ -16,15 +16,18 @@ pub use error::{Error, Result};
 pub struct ModelManager {
     db: Db,
     image_store: ImageStore,
+    schema_db : Db,
 }
 
 impl ModelManager {
-    pub async fn new(db_url: &str, image_store_url: &str) -> Result<Self> {
+    pub async fn new(db_url: &str, image_store_url: &str, schema_db_url :&str) -> Result<Self> {
         let db = store::get_db_pool(db_url).await?;
 
         let image_store = ImageStore::new(image_store_url)?;
 
-        Ok(Self { db, image_store })
+        let schema_db = store::get_db_pool(schema_db_url).await?;
+
+        Ok(Self { db, image_store, schema_db })
     }
 
     pub fn db(&self) -> &Db {
@@ -33,5 +36,9 @@ impl ModelManager {
 
     pub fn image_store(&self) -> &ImageStore {
         &self.image_store
+    }
+    
+    pub fn schema_db(&self) -> &Db {
+        &self.schema_db
     }
 }

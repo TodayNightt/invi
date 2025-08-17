@@ -1,0 +1,21 @@
+[package]
+name = "lib-model-schema"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lib-model = {workspace = true}
+lib-commons = {workspace = true}
+sqlx = {workspace = true}
+serde = { workspace = true }
+serde_json =  {workspace = true}
+tokio = {workspace = true}
+
+[dev-dependencies]
+serial_test = {workspace = true}
+
+[lints]
+workspace = true
+
+[features]
+serde = []

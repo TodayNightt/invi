@@ -5,6 +5,10 @@ pub enum Error {
     FailToCreatePool(String),
     FailToOpenCache(String),
     ParseError(String),
+
+    ItemNotFound(i64),
+    LocationMetadataNotFound(i64),
+    SchemaNotFound(i64),
     
     QueryNotFound(u32),
     QueryError(String),
@@ -16,7 +20,7 @@ pub enum Error {
     RecordCreationForbidden(String),
 
     IntegerConversionError(String),
-    
+
     RedDbError(redb::Error),
 }
 
