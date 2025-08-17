@@ -43,11 +43,7 @@ mod error {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::{
-        registry::Registry,
-        schema::Schema,
-        validator::Validator,
-    };
+    use crate::{registry::Registry, schema::Schema, validator::Validator};
     use lib_commons::{Field, FieldType, Value, ValueStore};
     use serde_json::json;
 
@@ -115,19 +111,18 @@ mod tests {
 
         let validator = Validator::new(Arc::clone(&registry));
 
-        let value = ValueStore::new(Some("TestSchema".to_string()))
-            .with_object_properties_schemas(Arc::new(
-                [("other".to_string(), "InnerSchema".to_string())].into(),
-            ))
+        let value = ValueStore::builder()
+            .with_schema("TestSchema")
             .string("name", "Ookuma Wakana".to_string())
             .number("age", 23)
             .object(
                 "other",
                 json!({
                     "a" : 10,
-                })
-                .into(),
-            );
+                }),
+                Some("InnerSchema"),
+            )
+            .build();
 
         let result = validator.validate(&value);
         println!("Validation result: {:?}", result);
@@ -163,19 +158,18 @@ mod tests {
 
         let validator = Validator::new(Arc::clone(&registry));
 
-        let mut value = ValueStore::new(Some("TestSchema".to_string()))
-            .with_object_properties_schemas(Arc::new(
-                [("other".to_string(), "InnerSchema".to_string())].into(),
-            ))
-            .string("name", "Ookuma Wakana".to_string())
+        let mut value = ValueStore::builder()
+            .with_schema("TestSchema")
+            .string("name", "Ookuma Wakana")
             .number("age", 23)
             .object(
                 "other",
                 json!({
                     "b" : 10,
-                })
-                .into(),
-            );
+                }),
+                Some("InnerSchema"),
+            )
+            .build();
 
         let result = validator.validate(&value);
         assert!(result.is_err());

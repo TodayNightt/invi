@@ -1,12 +1,15 @@
+use crate::value::Value;
+use crate::value_store::builder::Builder;
 pub use error::{Result, ValueStoreError};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value as SerdeValue};
+use serde_json::Value as SerdeValue;
 use std::fmt::{Display, Formatter};
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use crate::value::Value;
+
+pub mod builder;
 
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -24,47 +27,17 @@ impl ValueStore {
             values: BTreeMap::new(),
         }
     }
-    pub fn with_object_properties_schemas(
-        mut self,
-        object_properties_schemas: Arc<HashMap<String, String>>,
-    ) -> Self {
-        self.object_properties_schemas = object_properties_schemas;
 
-        self
-    }
 
     pub fn schema_name(&self) -> &Option<String> {
         &self.schema_name
     }
-    pub fn insert(&mut self, key: String, value: Value) {
-        self.values.insert(key, value);
-    }
-
-    pub fn string(mut self, key: &str, value: String) -> Self {
-        self.insert(key.to_string(), Value::String(value));
-        self
-    }
-
-    pub fn number(mut self, key: &str, value: u64) -> Self {
-        self.insert(key.to_string(), Value::Number(value));
-        self
-    }
-    // pub fn object(mut self, key: &str, value: BTreeMap<String, Value>) -> Self {
-    //     self.insert(key.to_string(), Value::Object(value));
-    //     self
-    // }
-
-    pub fn object(mut self, key: &str, value: Value) -> Self {
-        self.insert(key.to_string(), value);
-        self
-    }
-    pub fn array(mut self, key: &str, value: Vec<Value>) -> Self {
-        self.insert(key.to_string(), Value::Array(value));
-        self
-    }
-
     pub fn object_properties_schemas(&self) -> Arc<HashMap<String, String>> {
         self.object_properties_schemas.clone()
+    }
+
+    pub fn insert(&mut self, key: String, value: Value) {
+        self.values.insert(key, value);
     }
 
     pub fn get_all(&self) -> &BTreeMap<String, Value> {
@@ -77,38 +50,6 @@ impl ValueStore {
 
     pub fn remove(&mut self, key: &str) {
         self.values.remove(key);
-    }
-
-    pub fn from_object_value(
-        schema_name: Option<String>,
-        value: &Value,
-        object_properties_schemas: Arc<HashMap<String, String>>,
-    ) -> Result<ValueStore> {
-        let mut vs: ValueStore = ValueStore::from_value_shallow(value)?;
-        vs.schema_name = schema_name;
-
-        Ok(vs.with_object_properties_schemas(object_properties_schemas))
-    }
-
-    pub fn from_value_shallow(value: &Value) -> Result<Self> {
-        if let Some(map) = value.as_object() {
-            let mut value_store = ValueStore::new(None);
-
-            for (key, val) in map {
-                value_store.insert(key.clone(), val.clone());
-            }
-            Ok(value_store)
-        } else {
-            Err(ValueStoreError::NotAnObject)
-        }
-    }
-
-    pub fn with_values(mut self, values: SerdeValue) -> Option<Self> {
-        self.values = values.as_object()?
-            .into_iter()
-            .map(|(k, v)| (k.clone(), v.clone().into()))
-            .collect();
-        Some(self)
     }
 }
 
@@ -128,27 +69,26 @@ impl TryFrom<Value> for ValueStore {
                             .collect()
                     });
 
-                let mut value_store = {
-                    if let Some(object_properties_schemas) = object_properties_schemas {
-                        let object_properties_schema = Arc::new(object_properties_schemas);
-                        ValueStore::new(schema_name)
-                            .with_object_properties_schemas(object_properties_schema)
-                    } else {
-                        ValueStore::new(schema_name)
-                    }
+                let mut builder = if let Some(schema_name) = schema_name {
+                    ValueStore::builder().with_schema(schema_name)
+                }else {
+                    ValueStore::builder()
                 };
 
-                let Some(values) = map.get("values").and_then(|v| v.as_object()) else {
-                    return Err(ValueStoreError::CannotConvertFromValue.into());
-                };
-
-                for (key, value) in values {
-                    value_store.insert(key.clone(), value.clone());
+                if let Some(object_properties_schemas) = object_properties_schemas {
+                    builder = builder.with_object_properties_schemas(object_properties_schemas);
                 }
 
-                Ok(value_store)
+
+                let Some(values) = map.get("values").and_then(|v| v.as_object()) else {
+                    return Err(ValueStoreError::CannotConvertFromValue);
+                };
+
+                builder = builder.with_values(values.to_owned());
+
+                Ok(builder.build())
             }
-            _ => Err(ValueStoreError::NotAnObject.into()),
+            _ => Err(ValueStoreError::NotAnObject),
         }
     }
 }

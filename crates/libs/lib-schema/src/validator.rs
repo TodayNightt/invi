@@ -4,7 +4,7 @@ use crate::{Registry, Schema};
 
 pub(crate) use error::{Result, ValidatorError};
 
-use lib_commons::ValueStore;
+use lib_commons::{ValueStore, ValueStoreError};
 
 pub(crate) struct Validator {
     registry: Arc<Mutex<Registry>>,
@@ -65,11 +65,17 @@ impl Validator {
                 return Err(ValidatorError::SchemaNotFound(schema_name.to_string()));
             };
 
-            let temp = ValueStore::from_object_value(
-                Some(schema_name.clone()),
-                value,
-                object_properties_schema.clone(),
-            ).map_err(ValidatorError::ValueStoreError)?;
+            let temp = ValueStore::builder()
+                .with_schema(schema_name)
+                .with_object_properties_schemas(object_properties_schema.as_ref().clone())
+                .with_value(value)?
+                .build();
+
+            // let temp = ValueStore::from_object_value(
+            //     Some(schema_name.clone()),
+            //     value,
+            //     object_properties_schema.clone(),
+            // ).map_err(ValidatorError::ValueStoreError)?;
 
             self._validate(&schema, &temp)?;
         }

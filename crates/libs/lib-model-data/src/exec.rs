@@ -1,3 +1,8 @@
+use crate::store::image::ImageBmc;
+use crate::store::items::ItemsBmc;
+use crate::store::location_metadata::LocationMetadataBmc;
+use crate::store::locations::LocationsBmc;
+use crate::store::records::RecordsBmc;
 use crate::types::params::{
     GetAllRecordPayload, ItemDeletePayload, ItemEditPayload, ItemGetPayload, ItemImagePayload,
     ItemRecordDeletePayload, ItemRecordGetPayload, ItemRecordRegisterPayload,
@@ -6,11 +11,6 @@ use crate::types::params::{
     LocationRegisterPayload,
 };
 use crate::types::{Item, Items, Location, Locations, Records, RecordsForItem};
-use crate::store::image::ImageBmc;
-use crate::store::items::ItemsBmc;
-use crate::store::location_metadata::LocationMetadataBmc;
-use crate::store::locations::LocationsBmc;
-use crate::store::records::RecordsBmc;
 use lib_model::{Error, ModelManager, Result};
 use uuid::Uuid;
 
@@ -134,6 +134,8 @@ pub async fn remove_item(mm: &ModelManager, params: ItemDeletePayload) -> Result
         .await
         .ok_or(Error::ItemNotFound(params.id()))?;
 
+    // TODO : check whether image had been used by other entry
+    //        if not delete it from image_store
     Ok(())
 }
 
@@ -261,10 +263,8 @@ pub async fn remove_location(
 mod tests {
     use crate::exec::register_item;
     use crate::exec::store_image;
-    use crate::types::params::{
-        ItemImagePayload, ItemRegisterPayload, LocationRegisterPayload,
-    };
     use crate::store::items::ItemsBmc;
+    use crate::types::params::{ItemImagePayload, ItemRegisterPayload, LocationRegisterPayload};
     use lib_commons::ValueStore;
     use lib_model::_dev_utils::get_dev_env;
     use serde_json::json;
@@ -297,9 +297,10 @@ mod tests {
         let mm = get_dev_env().await.unwrap();
 
         // TODO : More dx friendly interface
-        let metadata = ValueStore::new(None)
-            .with_values(json!({"h" :"Hello", "i" : 124}))
-            .unwrap();
+        let metadata = ValueStore::builder()
+            .string("h", "Hello")
+            .number("i", 124)
+            .build();
 
         // TODO : Create more robust and dx friendly interface for struct creation
         let item_register_payload = ItemRegisterPayload::new(

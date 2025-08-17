@@ -1,5 +1,5 @@
-use lib_model::{Error, ModelManager, Result};
 use lib_commons::ValueStore;
+use lib_model::{Error, ModelManager, Result};
 use sqlx::types::Json;
 
 #[derive(Debug, sqlx::FromRow)]
@@ -54,7 +54,11 @@ impl ItemsBmc {
         Ok(id)
     }
 
-    pub async fn get_from_range(mm: &ModelManager, until_id: i64, limit: u32) -> Result<Vec<RawItem>> {
+    pub async fn get_from_range(
+        mm: &ModelManager,
+        until_id: i64,
+        limit: u32,
+    ) -> Result<Vec<RawItem>> {
         let db = mm.db();
 
         let result = sqlx::query_as!(
@@ -104,12 +108,13 @@ impl ItemsBmc {
 
         let result = sqlx::query!(
             "UPDATE items SET name = $1 WHERE id = $2",
-            updated_name, item_id
+            updated_name,
+            item_id
         )
-            .execute(db)
-            .await
-            .ok()?
-            .rows_affected();
+        .execute(db)
+        .await
+        .ok()?
+        .rows_affected();
 
         if result.lt(&1) {
             return None;
@@ -123,12 +128,13 @@ impl ItemsBmc {
 
         let result = sqlx::query!(
             "UPDATE items SET item_metadata = $1 WHERE id = $2",
-            metadata, item_id
+            metadata,
+            item_id
         )
-            .execute(db)
-            .await
-            .ok()?
-            .rows_affected();
+        .execute(db)
+        .await
+        .ok()?
+        .rows_affected();
 
         if result.lt(&1) {
             return None;
@@ -142,12 +148,13 @@ impl ItemsBmc {
 
         let result = sqlx::query!(
             "UPDATE items SET image = $1 WHERE id = $2",
-            updated_image, item_id
+            updated_image,
+            item_id
         )
-            .execute(db)
-            .await
-            .ok()?
-            .rows_affected();
+        .execute(db)
+        .await
+        .ok()?
+        .rows_affected();
 
         if result.lt(&1) {
             return None;
@@ -160,10 +167,7 @@ impl ItemsBmc {
         let db = mm.db();
 
         // Delete an item by ID
-        let rows_affected = sqlx::query!(
-            "DELETE FROM items WHERE id = $1",
-            item_id
-        )
+        let rows_affected = sqlx::query!("DELETE FROM items WHERE id = $1", item_id)
             .execute(db)
             .await
             .ok()?
@@ -179,9 +183,9 @@ impl ItemsBmc {
 
 #[cfg(test)]
 mod tests {
-    use lib_model::_dev_utils::get_dev_env;
     use crate::store::items::ItemsBmc;
     use lib_commons::ValueStore;
+    use lib_model::_dev_utils::get_dev_env;
     use serial_test::serial;
 
     #[tokio::test]
@@ -191,7 +195,7 @@ mod tests {
 
         let item = ItemsBmc::get(&mm, 1).await.unwrap();
 
-        assert_eq!(item.id,1);
+        assert_eq!(item.id, 1);
 
         assert_eq!(item.name, "Item 1");
     }
@@ -203,7 +207,9 @@ mod tests {
 
         let name = "TestItem2";
 
-        let metadata = ValueStore::new(None).string("test_key", "test_value".to_string());
+        let metadata = ValueStore::builder()
+            .string("test_key", "test_value")
+            .build();
 
         let location = 1;
 
@@ -261,15 +267,19 @@ mod tests {
 
         let name = "TestItem2";
 
-        let metadata = ValueStore::new(None).string("test_key", "test_value".to_string());
+        let metadata = ValueStore::builder()
+            .string("test_key", "test_value")
+            .build();
 
         let id = ItemsBmc::create(&mm, name, &metadata.to_string(), 1, 1)
             .await
             .unwrap();
 
-        let updated_metadata = ValueStore::new(Some("TestSchema".to_string()))
-            .string("a", "this is a string".to_string())
-            .number("b", 10);
+        let updated_metadata = ValueStore::builder()
+            .with_schema("TestSchema")
+            .string("a", "this is a string")
+            .number("b", 10)
+            .build();
 
         ItemsBmc::update_metadata(&mm, id, &updated_metadata.to_string())
             .await

@@ -1,6 +1,6 @@
-use lib_model::{Error, Result};
-use lib_model::ModelManager;
 use lib_commons::ValueStore;
+use lib_model::ModelManager;
+use lib_model::{Error, Result};
 use sqlx::types::Json;
 
 // region : Types
@@ -48,9 +48,9 @@ impl LocationMetadataBmc {
                 "#,
             id
         )
-            .fetch_one(db)
-            .await
-            .ok()?;
+        .fetch_one(db)
+        .await
+        .ok()?;
 
         Some(result)
     }
@@ -77,13 +77,13 @@ impl LocationMetadataBmc {
             name,
             id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
         Ok(())
     }
 
-   pub async fn update_metadata(mm: &ModelManager, id: i64, metadata: Option<&str>) -> Result<()> {
+    pub async fn update_metadata(mm: &ModelManager, id: i64, metadata: Option<&str>) -> Result<()> {
         let db = mm.db();
 
         sqlx::query!(
@@ -91,8 +91,8 @@ impl LocationMetadataBmc {
             metadata,
             id
         )
-            .execute(db)
-            .await?;
+        .execute(db)
+        .await?;
 
         Ok(())
     }
@@ -144,12 +144,15 @@ mod tests {
     async fn test_get_all() {
         let mm = get_dev_env().await.unwrap();
 
-        let metadata = ValueStore::new(None).array(
-            "racks",
-            vec![Value::from(json!({
-                "name" : "Rack Uno"
-            }))],
-        );
+        let metadata = ValueStore::builder()
+            .array(
+                "racks",
+                vec![Value::from(json!({
+                    "name" : "Rack Uno"
+                }))],
+                None,
+            )
+            .build();
 
         let _ = LocationMetadataBmc::create(&mm, "Can 1", Some(&metadata.to_string()))
             .await
@@ -169,12 +172,15 @@ mod tests {
     async fn test_create() {
         let mm = get_dev_env().await.unwrap();
 
-        let metadata = ValueStore::new(None).array(
-            "racks",
-            vec![Value::from(json!({
-                "name" : "Rack Uno"
-            }))],
-        );
+        let metadata = ValueStore::builder()
+            .array(
+                "racks",
+                vec![Value::from(json!({
+                    "name" : "Rack Uno"
+                }))],
+                None,
+            )
+            .build();
 
         let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
@@ -190,12 +196,15 @@ mod tests {
     #[serial]
     async fn test_update() {
         let mm = get_dev_env().await.unwrap();
-        let metadata = ValueStore::new(None).array(
-            "racks",
-            vec![Value::from(json!({
-                "name" : "Rack Uno"
-            }))],
-        );
+        let metadata = ValueStore::builder()
+            .array(
+                "racks",
+                vec![Value::from(json!({
+                    "name" : "Rack Uno"
+                }))],
+                None,
+            )
+            .build();
         // Update name
         let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
@@ -218,12 +227,15 @@ mod tests {
             .await
             .unwrap();
 
-        let metadata = ValueStore::new(None).array(
-            "racks",
-            vec![Value::from(json!({
-                "name" : "Cupboard Uno"
-            }))],
-        );
+        let metadata = ValueStore::builder()
+            .array(
+                "racks",
+                vec![Value::from(json!({
+                    "name" : "Cupboard Uno"
+                }))],
+                None,
+            )
+            .build();
         LocationMetadataBmc::update_metadata(&mm, id, Some(&metadata.to_string()))
             .await
             .unwrap();
@@ -258,12 +270,15 @@ mod tests {
     async fn test_delete() {
         let mm = get_dev_env().await.unwrap();
 
-        let metadata = ValueStore::new(None).array(
-            "racks",
-            vec![Value::from(json!({
-                "name" : "Rack Uno"
-            }))],
-        );
+        let metadata = ValueStore::builder()
+            .array(
+                "racks",
+                vec![Value::from(json!({
+                    "name" : "Rack Uno"
+                }))],
+                None,
+            )
+            .build();
         // Update name
         let id = LocationMetadataBmc::create(&mm, "Container Uno", Some(&metadata.to_string()))
             .await
