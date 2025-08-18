@@ -1,12 +1,21 @@
 [workspace]
 members = [
+    # Services
+    "crates/services/invi/src-tauri",
+    "crates/services/invi",
+    "crates/services/s",
+
+    # Libs
     "crates/libs/lib-core",
     "crates/libs/lib-model",
     "crates/libs/lib-utils",
-    "crates/services/invi/src-tauri",
-    "crates/services/invi",
     "crates/libs/lib-schema",
-    "crates/libs/lib-sync", "crates/libs/lib-image", "crates/libs/lib-export", "crates/services/s", "crates/libs/lib-commons", "crates/libs/lib-model-data",
+    "crates/libs/lib-sync",
+    "crates/libs/lib-image",
+    "crates/libs/lib-export",
+    "crates/libs/lib-commons",
+    "crates/libs/lib-model-schema",
+    "crates/libs/lib-model-data",
 ]
 resolver = "3"
 
@@ -16,8 +25,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.30", features = ["full"] }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json"] }
-lib-core = { path = "crates/libs/lib-core" }
+chrono = { version = "0.4.41" }
+redb = "2.6.2"
+uuid = "1.17.0"
+
 lib-model = { path = "crates/libs/lib-model", features = ["serde"] }
+lib-model-data = { path = "crates/libs/lib-model-data", features = ["serde"] }
+lib-model-schema = { path = "crates/libs/lib-model-schema", features = ["serde"] }
 lib-utils = { path = "crates/libs/lib-utils" }
 lib-schema = { path = "crates/libs/lib-schema" }
 lib-commons = { path = "crates/libs/lib-commons" }
