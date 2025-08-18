@@ -1,6 +1,11 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+pub use builder::{Any, Arr, Builder, Obj};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use crate::value::ext::CommonsValue;
+
+pub mod builder;
+
+pub mod ext;
 
 /// This is a custom implementation of the 'Value' type apart from the 'serde_json' crate.
 /// As I want to create custom API for this type.
@@ -32,7 +37,6 @@ impl Value {
             None
         }
     }
-
 
     pub fn as_object(&self) -> Option<&BTreeMap<String, Value>> {
         if let Value::Object(m) = self {
@@ -80,22 +84,12 @@ impl Value {
 
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
-        match value {
-            serde_json::Value::String(s) => Value::String(s),
-            serde_json::Value::Number(n) => Value::Number(n.as_u64().unwrap()),
-            serde_json::Value::Object(o) => {
-                let mut map = BTreeMap::new();
-                for (k, v) in o {
-                    map.insert(k, Value::from(v));
-                }
-                Value::Object(map)
-            }
-            serde_json::Value::Array(a) => {
-                let vec: Vec<Value> = a.into_iter().map(Value::from).collect();
-                Value::Array(vec)
-            }
-            serde_json::Value::Bool(b) => Value::Boolean(b),
-            serde_json::Value::Null => Value::Null,
-        }
+        value.as_commons_value()
+    }
+}
+
+impl From<&serde_json::Value> for Value {
+    fn from(value: &serde_json::Value) -> Self {
+        value.clone().into()
     }
 }

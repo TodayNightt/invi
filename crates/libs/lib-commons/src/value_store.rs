@@ -1,5 +1,4 @@
 use crate::value::Value;
-use crate::value_store::builder::Builder;
 pub use error::{Result, ValueStoreError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as SerdeValue;

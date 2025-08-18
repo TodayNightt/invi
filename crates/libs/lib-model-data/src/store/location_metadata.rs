@@ -141,9 +141,9 @@ mod tests {
         let metadata = ValueStore::builder()
             .array(
                 "racks",
-                vec![Value::from(json!({
-                    "name" : "Rack Uno"
-                }))],
+                Value::builder()
+                    .array()
+                    .push_object(|obj| obj.push_string("name", "Rack Uno")),
                 None,
             )
             .build();
@@ -169,9 +169,9 @@ mod tests {
         let metadata = ValueStore::builder()
             .array(
                 "racks",
-                vec![Value::from(json!({
-                    "name" : "Rack Uno"
-                }))],
+                Value::builder()
+                    .array()
+                    .push_object(|obj| obj.push_string("name", "Rack Uno")),
                 None,
             )
             .build();
@@ -193,9 +193,9 @@ mod tests {
         let metadata = ValueStore::builder()
             .array(
                 "racks",
-                vec![Value::from(json!({
-                    "name" : "Rack Uno"
-                }))],
+                Value::builder()
+                    .array()
+                    .push_object(|obj| obj.push_string("name", "Rack Uno")),
                 None,
             )
             .build();
@@ -224,9 +224,9 @@ mod tests {
         let metadata = ValueStore::builder()
             .array(
                 "racks",
-                vec![Value::from(json!({
-                    "name" : "Cupboard Uno"
-                }))],
+                Value::builder()
+                    .array()
+                    .push_object(|obj| obj.push_string("name", "Cupboard Uno")),
                 None,
             )
             .build();
@@ -253,9 +253,9 @@ mod tests {
         let metadata = ValueStore::builder()
             .array(
                 "racks",
-                vec![Value::from(json!({
-                    "name" : "Rack Uno"
-                }))],
+                Value::builder()
+                    .array()
+                    .push_object(|obj| obj.push_string("name", "Rack Uno")),
                 None,
             )
             .build();

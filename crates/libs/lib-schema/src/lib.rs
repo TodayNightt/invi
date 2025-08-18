@@ -113,13 +113,11 @@ mod tests {
 
         let value = ValueStore::builder()
             .with_schema("TestSchema")
-            .string("name", "Ookuma Wakana".to_string())
+            .string("name", "Ookuma Wakana")
             .number("age", 23)
             .object(
                 "other",
-                json!({
-                    "a" : 10,
-                }),
+                Value::builder().object().push_number("a", 10).into_map(),
                 Some("InnerSchema"),
             )
             .build();
@@ -164,9 +162,7 @@ mod tests {
             .number("age", 23)
             .object(
                 "other",
-                json!({
-                    "b" : 10,
-                }),
+                Value::builder().object().push_number("b",10).into_map(),
                 Some("InnerSchema"),
             )
             .build();
