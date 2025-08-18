@@ -111,7 +111,7 @@ impl LocationMetadataBmc {
 #[cfg(test)]
 mod tests {
     use crate::store::location_metadata::LocationMetadataBmc;
-    use lib_commons::{Value, ValueStore};
+    use lib_commons::{Value, ValueStore, get};
     use lib_model::_dev_utils::get_dev_env;
     use serde_json::json;
     use serial_test::serial;
@@ -125,15 +125,9 @@ mod tests {
 
         assert_eq!(result.id, 1);
         assert_eq!(result.name, "Container 1");
+        let metadata = result.metadata.unwrap().0;
         assert!(
-            result
-                .metadata
-                .clone()
-                .unwrap()
-                .get("racks")
-                .unwrap()
-                .as_array()
-                .unwrap()
+            get!(metadata, array, racks).unwrap()
                 .len()
                 .eq(&3)
         );
@@ -244,23 +238,9 @@ mod tests {
 
         assert_ne!(result.id, 1);
 
-        // FIXME : Get better API for getting data
-        let name = result
-            .metadata
-            .clone()
-            .unwrap()
-            .get("racks")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .first()
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get("name")
-            .unwrap()
-            .as_string()
-            .unwrap();
+        let metadata = result.metadata.unwrap().0;
+
+        let name = get!(metadata, string, racks.0.name).unwrap();
 
         assert_eq!(name, "Cupboard Uno");
     }
