@@ -184,7 +184,7 @@ impl ItemsBmc {
 #[cfg(test)]
 mod tests {
     use crate::store::items::ItemsBmc;
-    use lib_commons::ValueStore;
+    use lib_commons::{get, ValueStore};
     use lib_model::_dev_utils::get_dev_env;
     use serial_test::serial;
 
@@ -287,11 +287,11 @@ mod tests {
 
         let result_item = ItemsBmc::get(&mm, id).await.unwrap();
 
-        let metadata = result_item.item_metadata;
+        let metadata = result_item.item_metadata.0;
 
-        let metadata_value = metadata.get("a").unwrap();
+        let metadata_value = get!(metadata, string, a).unwrap();
 
-        assert_eq!(metadata_value.as_string().unwrap(), "this is a string");
+        assert_eq!(metadata_value, "this is a string");
 
         ItemsBmc::delete(&mm, id).await.unwrap();
     }

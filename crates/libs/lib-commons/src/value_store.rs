@@ -11,6 +11,8 @@ use std::{
 
 pub mod builder;
 
+mod macros;
+
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ValueStore {
@@ -35,6 +37,9 @@ impl ValueStore {
     pub fn object_properties_schemas(&self) -> Arc<HashMap<String, String>> {
         self.object_properties_schemas.clone()
     }
+    pub fn as_value(&self) -> Value {
+        Value::Object(self.values.clone())
+    }
 
     pub fn insert(&mut self, key: String, value: Value) {
         self.values.insert(key, value);
@@ -58,14 +63,14 @@ impl TryFrom<Value> for ValueStore {
     fn try_from(value: Value) -> core::result::Result<Self, Self::Error> {
         match value {
             Value::Object(map) => {
-                let schema_name = map.get("schema_name").and_then(|v| v.as_str());
+                let schema_name = map.get("schema_name").and_then(|v| v.as_string());
 
                 let object_properties_schemas: Option<HashMap<String, String>> = map
                     .get("object_properties_schemas")
                     .and_then(|v| v.as_object())
                     .map(|v| {
                         v.iter()
-                            .map(|(k, v)| (k.to_owned(), v.as_str().unwrap_or_default().to_owned()))
+                            .map(|(k, v)| (k.to_owned(), v.as_string().unwrap_or_default().to_owned()))
                             .collect()
                     });
 
