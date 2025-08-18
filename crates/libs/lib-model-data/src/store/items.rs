@@ -229,7 +229,7 @@ mod tests {
 
         let metadata = metadata.get("test_key").unwrap();
 
-        assert_eq!(metadata.as_str().unwrap(), "test_value");
+        assert_eq!(metadata.as_string().unwrap(), "test_value");
 
         let deleted_id = ItemsBmc::delete(&mm, id).await.unwrap();
 
@@ -291,7 +291,7 @@ mod tests {
 
         let metadata_value = metadata.get("a").unwrap();
 
-        assert_eq!(metadata_value.as_str().unwrap(), "this is a string");
+        assert_eq!(metadata_value.as_string().unwrap(), "this is a string");
 
         ItemsBmc::delete(&mm, id).await.unwrap();
     }

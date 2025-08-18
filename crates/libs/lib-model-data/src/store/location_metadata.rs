@@ -259,7 +259,7 @@ mod tests {
             .unwrap()
             .get("name")
             .unwrap()
-            .as_str()
+            .as_string()
             .unwrap();
 
         assert_eq!(name, "Cupboard Uno");

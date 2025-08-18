@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 /// This is a custom implementation of the 'Value' type apart from the 'serde_json' crate.
@@ -16,7 +17,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn as_str(&self) -> Option<String> {
+    pub fn as_string(&self) -> Option<String> {
         if let Value::String(s) = self {
             Some(s.clone())
         } else {
@@ -24,13 +25,14 @@ impl Value {
         }
     }
 
-    pub fn as_i64(&self) -> Option<u64> {
+    pub fn as_number(&self) -> Option<u64> {
         if let Value::Number(n) = self {
             Some(*n)
         } else {
             None
         }
     }
+
 
     pub fn as_object(&self) -> Option<&BTreeMap<String, Value>> {
         if let Value::Object(m) = self {
