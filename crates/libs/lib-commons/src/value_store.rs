@@ -20,15 +20,41 @@ pub struct ValueStore {
     values: BTreeMap<String, Value>,
 }
 
+pub struct SchemaDescriptor<'a> {
+    main: Arc<str>,
+    properties: Arc<HashMap<&'a str, &'a str>>,
+}
+
+impl SchemaDescriptor<'_> {
+    pub fn main(&self) -> &str {
+        self.main.as_ref()
+    }
+
+    pub fn properties(&self) -> Arc<HashMap<&str, &str>> {
+        self.properties.clone()
+    }
+}
+
 impl ValueStore {
     pub fn new(schema_name: Option<String>) -> Self {
         ValueStore {
-            schema_name: schema_name.map(|s| s.to_string()),
+            schema_name,
             object_properties_schemas: Arc::new(HashMap::new()),
             values: BTreeMap::new(),
         }
     }
 
+    pub fn schema_descriptor(&self) -> Option<SchemaDescriptor> {
+        let main = self.schema_name().as_ref().map(|s| Arc::from(s.as_str()))?;
+        let properties: Arc<HashMap<&str, &str>> = Arc::new(
+            self.object_properties_schemas
+                .as_ref()
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect(),
+        );
+        Some(SchemaDescriptor { main, properties })
+    }
 
     pub fn schema_name(&self) -> &Option<String> {
         &self.schema_name
@@ -69,20 +95,21 @@ impl TryFrom<Value> for ValueStore {
                     .and_then(|v| v.as_object())
                     .map(|v| {
                         v.iter()
-                            .map(|(k, v)| (k.to_owned(), v.as_string().unwrap_or_default().to_owned()))
+                            .map(|(k, v)| {
+                                (k.to_owned(), v.as_string().unwrap_or_default().to_owned())
+                            })
                             .collect()
                     });
 
                 let mut builder = if let Some(schema_name) = schema_name {
                     ValueStore::builder().with_schema(schema_name)
-                }else {
+                } else {
                     ValueStore::builder()
                 };
 
                 if let Some(object_properties_schemas) = object_properties_schemas {
                     builder = builder.with_object_properties_schemas(object_properties_schemas);
                 }
-
 
                 let Some(values) = map.get("values").and_then(|v| v.as_object()) else {
                     return Err(ValueStoreError::CannotConvertFromValue);

@@ -2667,6 +2667,7 @@ name = "lib-core"
 version = "0.1.0"
 dependencies = [
  "lib-model",
+ "lib-schema",
  "lib-utils",
  "serde",
  "serde_json",
@@ -2701,10 +2702,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-model-data"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lib-commons",
+ "lib-model",
+ "redb",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sqlx",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "lib-model-schema"
+version = "0.1.0"
+dependencies = [
+ "lib-commons",
+ "lib-model",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "lib-schema"
 version = "0.1.0"
 dependencies = [
  "lib-commons",
+ "lib-model",
+ "lib-model-schema",
  "serde",
  "serde_json",
 ]
@@ -4391,6 +4423,11 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 [[package]]
 name = "s"
 version = "0.1.0"
+dependencies = [
+ "lib-commons",
+ "lib-model-data",
+ "serde_json",
+]
 
 [[package]]
 name = "same-file"

@@ -2,20 +2,107 @@ mod registry;
 mod schema;
 mod validator;
 
+use crate::Error::ValidationError;
+use crate::validator::{Validator, ValidatorError};
 pub use error::{Error, Result};
+use lib_commons::ValueStore;
 pub use lib_commons::{Field, FieldType};
+use lib_model::ModelManager;
 pub use registry::Registry;
 pub use schema::Schema;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+
+pub struct SchemaManager {
+    registry: Arc<RwLock<Registry>>,
+}
+
+pub struct ValidationDescriptor<'a> {
+    main: Arc<Schema>,
+    properties: Arc<HashMap<&'a str, Arc<Schema>>>,
+}
+
+impl ValidationDescriptor<'_> {
+    pub fn main(&self) -> Arc<Schema> {
+        self.main.clone()
+    }
+
+    pub fn properties(&self) -> Arc<HashMap<&str, Arc<Schema>>> {
+        self.properties.clone()
+    }
+}
+
+impl SchemaManager {
+    pub async fn new(mm: &ModelManager) -> Result<Self> {
+        let registry = Registry::load_from_db(mm).await?;
+        Ok(SchemaManager {
+            registry: Arc::new(RwLock::new(registry)),
+        })
+    }
+
+    pub fn register(&self, name: &str, schema: Schema) -> Result<()> {
+        self.registry.write().map_err(|_| Error::LockError)?.register(name, schema);
+
+        Ok(())
+    }
+
+    pub fn registry(&self) -> Arc<RwLock<Registry>> {
+        self.registry.clone()
+    }
+
+    pub fn validate(&self, value: &ValueStore) -> Result<()> {
+        let descriptor = value
+            .schema_descriptor()
+            .ok_or(ValidationError(ValidatorError::SchemaIdentifierMissing))?;
+
+        let main_schema = {
+            self.registry
+                .read()
+                .map_err(|_| Error::LockError)?
+                .get_schema(descriptor.main())
+                .ok_or(ValidationError(ValidatorError::SchemaNotFound(
+                    descriptor.main().to_string(),
+                )))?
+        };
+
+        let mut properties = HashMap::new();
+        for (field, name) in descriptor.properties().as_ref() {
+            let s = {
+                self.registry
+                    .read()
+                    .map_err(|_| Error::LockError)?
+                    .get_schema(name)
+                    .ok_or(ValidationError(ValidatorError::SchemaNotFound(
+                        name.to_string(),
+                    )))?
+            };
+            properties.entry(*field).or_insert(s);
+        }
+
+        let validation_descriptor = ValidationDescriptor {
+            main: main_schema,
+            properties: Arc::new(properties),
+        };
+
+        let validator = Validator::new(validation_descriptor);
+
+        validator.validate(value)?;
+
+        Ok(())
+    }
+}
 
 mod error {
     pub type Result<T> = core::result::Result<T, Error>;
 
-    use crate::validator;
+    use crate::{registry, validator};
 
     #[derive(Debug)]
     pub enum Error {
         ValidationError(validator::ValidatorError),
-        ValueStoreError(lib_commons::ValueStoreError),
+        RegistryError(registry::Error),
+
+        LockError,
     }
 
     impl From<validator::ValidatorError> for Error {
@@ -24,9 +111,9 @@ mod error {
         }
     }
 
-    impl From<lib_commons::ValueStoreError> for Error {
-        fn from(value: lib_commons::ValueStoreError) -> Self {
-            Error::ValueStoreError(value)
+    impl From<registry::Error> for Error {
+        fn from(value: registry::Error) -> Self {
+            Error::RegistryError(value)
         }
     }
 
@@ -41,11 +128,9 @@ mod error {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
-
-    use crate::{registry::Registry, schema::Schema, validator::Validator};
+    use crate::{SchemaManager, registry::Registry, schema::Schema};
     use lib_commons::{Field, FieldType, Value, ValueStore};
-    use serde_json::json;
+    use std::sync::{Arc, RwLock};
 
     #[test]
     fn test_schema_creation() {
@@ -100,16 +185,15 @@ mod tests {
             vec![Field::create("a", FieldType::Number, true, Value::Null)],
         );
 
-        let mut registry = Arc::new(Mutex::new(Registry::new()));
+        let schema_manager = SchemaManager {
+            registry: Arc::new(RwLock::new(Registry::new())),
+        };
 
-        registry.lock().unwrap().register("TestSchema", schema);
+        schema_manager.register("TestSchema", schema).unwrap();
 
-        registry
-            .lock()
-            .unwrap()
-            .register("InnerSchema", inner_schema);
-
-        let validator = Validator::new(Arc::clone(&registry));
+        schema_manager
+            .register("InnerSchema", inner_schema)
+            .unwrap();
 
         let value = ValueStore::builder()
             .with_schema("TestSchema")
@@ -122,7 +206,7 @@ mod tests {
             )
             .build();
 
-        let result = validator.validate(&value);
+        let result = schema_manager.validate(&value);
         println!("Validation result: {:?}", result);
         assert!(result.is_ok());
 
@@ -145,16 +229,15 @@ mod tests {
             vec![Field::create("a", FieldType::Number, true, Value::Null)],
         );
 
-        let mut registry = Arc::new(Mutex::new(Registry::new()));
+        let schema_manager = SchemaManager {
+            registry: Arc::new(RwLock::new(Registry::new())),
+        };
 
-        registry.lock().unwrap().register("TestSchema", schema);
+        schema_manager.register("TestSchema", schema).unwrap();
 
-        registry
-            .lock()
-            .unwrap()
-            .register("InnerSchema", inner_schema);
-
-        let validator = Validator::new(Arc::clone(&registry));
+        schema_manager
+            .register("InnerSchema", inner_schema)
+            .unwrap();
 
         let mut value = ValueStore::builder()
             .with_schema("TestSchema")
@@ -162,17 +245,17 @@ mod tests {
             .number("age", 23)
             .object(
                 "other",
-                Value::builder().object().push_number("b",10).into_map(),
+                Value::builder().object().push_number("b", 10).into_map(),
                 Some("InnerSchema"),
             )
             .build();
 
-        let result = validator.validate(&value);
+        let result = schema_manager.validate(&value);
         assert!(result.is_err());
 
         value.remove("other");
 
-        let result = validator.validate(&value);
+        let result = schema_manager.validate(&value);
         assert!(result.is_err());
 
         println!("Validation failed: {:?}", result);

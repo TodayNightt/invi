@@ -1,21 +1,25 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::{Registry, Schema};
+use crate::{Registry, Schema, ValidationDescriptor};
 
 pub(crate) use error::{Result, ValidatorError};
 
 use lib_commons::{ValueStore, ValueStoreError};
 
-pub(crate) struct Validator {
-    registry: Arc<Mutex<Registry>>,
+
+
+
+pub(crate) struct Validator<'a> {
+    validation_descriptor: ValidationDescriptor<'a>
 }
 
-impl Validator {
-    pub fn new(registry: Arc<Mutex<Registry>>) -> Self {
-        Validator { registry }
+impl<'a> Validator<'a> {
+    pub fn new(validation_descriptor : ValidationDescriptor<'a> ) -> Self {
+        Self { validation_descriptor }
     }
 
-    fn validate_fields(&self, schema: &Schema, value: &ValueStore) -> Result<()> {
+    fn validate_fields(&self, schema: Arc<Schema>, value: &ValueStore) -> Result<()> {
         let object_properties_schema = value.object_properties_schemas();
         for field in schema.fields() {
             let field_name = field.name();
@@ -51,63 +55,35 @@ impl Validator {
     fn validate_inner_object(&self, value: &ValueStore) -> Result<()> {
         let object_properties_schema = value.object_properties_schemas();
 
-        for (field_name, schema_name) in object_properties_schema.as_ref() {
+        for (field_name, schema) in self.validation_descriptor.properties.as_ref() {
             let Some(value) = value.get(field_name) else {
                 continue;
             };
 
-            let schema = {
-                let l = self.registry.lock().unwrap();
-                l.get_schema(schema_name)
-            };
-
-            let Some(schema) = schema else {
-                return Err(ValidatorError::SchemaNotFound(schema_name.to_string()));
-            };
 
             let temp = ValueStore::builder()
-                .with_schema(schema_name)
+                .with_schema(schema.name())
                 .with_object_properties_schemas(object_properties_schema.as_ref().clone())
                 .with_value(value)?
                 .build();
+            
 
-            // let temp = ValueStore::from_object_value(
-            //     Some(schema_name.clone()),
-            //     value,
-            //     object_properties_schema.clone(),
-            // ).map_err(ValidatorError::ValueStoreError)?;
-
-            self._validate(&schema, &temp)?;
+            self._validate(schema.clone(), &temp)?;
         }
 
         Ok(())
     }
 
-    fn _validate(&self, schema: &Schema, value: &ValueStore) -> Result<()> {
+    fn _validate(&self, schema: Arc<Schema>, value: &ValueStore) -> Result<()> {
         self.validate_fields(schema, value)?;
         self.validate_inner_object(value)?;
 
         Ok(())
     }
 
+    #[inline]
     pub fn validate(&self, value: &ValueStore) -> Result<()> {
-        let schema_name = value.schema_name();
-
-        let Some(schema_name) = schema_name else {
-            return Err(ValidatorError::SchemaIndentifierMissing);
-        };
-
-        let schema = {
-            let binding = self.registry.lock().unwrap();
-
-            binding.get_schema(schema_name)
-        };
-
-        let Some(schema) = schema else {
-            return Err(ValidatorError::SchemaNotFound(schema_name.to_string()));
-        };
-
-        self._validate(&schema, value)
+        self._validate(self.validation_descriptor.main(),value)
     }
 }
 
@@ -121,7 +97,7 @@ mod error {
         InvalidType(String),
         RequiredFieldMissing(String),
         SchemaNotFound(String),
-        SchemaIndentifierMissing,
+        SchemaIdentifierMissing,
 
         // -- ValueStoreError --
         ValueStoreError(lib_commons::ValueStoreError),

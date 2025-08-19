@@ -16,8 +16,8 @@ pub(crate) mod types {
 
         #[derive(Debug, Clone)]
         pub struct SchemaRegisterPayload {
-            name: String,
-            fields: Arc<[Field]>,
+            pub name: String,
+            pub fields: Arc<[Field]>,
         }
 
         impl SchemaRegisterPayload {
@@ -32,9 +32,9 @@ pub(crate) mod types {
 
         #[derive(Debug, Clone)]
         pub struct SchemaUpdatePayload {
-            id: i64,
-            name: Option<String>,
-            fields: Option<Arc<[Field]>>,
+           pub id: i64,
+            pub name: Option<String>,
+            pub fields: Option<Arc<[Field]>>,
         }
 
         impl SchemaUpdatePayload {
@@ -50,9 +50,9 @@ pub(crate) mod types {
             }
         }
 
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Default)]
         pub struct SchemaGetPayload {
-            id: Option<i64>,
+          id: Option<i64>,
         }
 
         impl SchemaGetPayload {
@@ -80,10 +80,25 @@ pub(crate) mod types {
 
     pub type BulkSchema = Arc<[Schema]>;
 
+    #[derive(Debug, Clone)]
     pub struct Schema {
         id: i64,
         name: String,
         fields: Arc<[Field]>,
+    }
+
+    impl Schema {
+        pub fn id(&self) -> i64 {
+            self.id
+        }
+        
+        pub fn name(&self) -> &str {
+            &self.name
+        }
+
+        pub fn fields(&self) -> Arc<[Field]> {
+            self.fields.clone()
+        }
     }
 
     impl From<RawSchema> for Schema {

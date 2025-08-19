@@ -35,10 +35,6 @@ lib-model-schema = { path = "crates/libs/lib-model-schema", features = ["serde"]
 lib-utils = { path = "crates/libs/lib-utils" }
 lib-schema = { path = "crates/libs/lib-schema" }
 lib-commons = { path = "crates/libs/lib-commons" }
-chrono = "0.4.41"
-redb = "2.6.2"
-uuid = "1.17.0"
-
 
 serial_test = "3.2.0"
 

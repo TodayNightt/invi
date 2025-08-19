@@ -36,6 +36,22 @@ impl Field {
             default,
         }
     }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
+
+    pub fn set_field_type(&mut self, field_type: FieldType) {
+        self.field_type = field_type;
+    }
+
+    pub fn set_required(&mut self, required: bool) {
+        self.required = required;
+    }
+
+    pub fn set_default(&mut self, default: Value) {
+        self.default = default;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -9,5 +9,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 
 lib-commons = { workspace = true }
 lib-model = { workspace = true }
+
+lib-model-schema = { workspace = true }
 [lints]
 workspace = true
